@@ -116,7 +116,8 @@ def get_database_connection():
         raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
     
     try:
-        # A. 供應商原生連接字串直通 libpq - 不做任何解析或拼接
+        # A. 供應商原生連接字串直通 libpq - 清理換行符和空白字符
+        database_url = database_url.strip()  # 移除前後空白和換行符
         logger.info(f"Attempting direct DSN connection...")
         conn = psycopg.connect(database_url, connect_timeout=5)
         logger.info("Database connection successful via direct DSN")
