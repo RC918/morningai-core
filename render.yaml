@@ -1,49 +1,27 @@
 # MorningAI Core - Render.com Service Configuration
-# Simplified version - Web service only
+# Updated for current project structure with Docker
 
 services:
   # Main API Service
   - type: web
-    name: morningai-core-staging
+    name: morningai-core
     runtime: docker
     plan: starter  # Free tier for staging
     region: oregon  # US West
     branch: main
     rootDir: .
-    dockerfilePath: cloud-deployment/docker/Dockerfile
+    dockerfilePath: ./Dockerfile  # Use our simplified Dockerfile
     
     # Environment variables
     envVars:
       - key: ENVIRONMENT
         value: staging
-      - key: LOG_LEVEL
-        value: info
-      - key: WORKERS
-        value: 1
       - key: PORT
         value: 8000
       - key: PYTHONPATH
         value: /app
-      - key: OPENAI_API_BASE
-        value: https://api.openai.com/v1
-      - key: JWT_ALGORITHM
-        value: HS256
-      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-        value: 30
-      - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
-        value: 7
-      - key: SENTRY_ENVIRONMENT
-        value: staging
-      # Database and Redis URLs will be set manually after creating services
+      # Database URL will be set manually after creating services
       - key: DATABASE_URL
-        sync: false  # Set manually in Render dashboard
-      - key: REDIS_URL
-        sync: false  # Set manually in Render dashboard
-      - key: OPENAI_API_KEY
-        sync: false  # Set manually in Render dashboard
-      - key: JWT_SECRET_KEY
-        generateValue: true
-      - key: SENTRY_DSN
         sync: false  # Set manually in Render dashboard
     
     # Health check configuration
@@ -52,6 +30,6 @@ services:
     # Auto-deploy on push to main
     autoDeploy: true
     
-    # Build command (if needed)
-    buildCommand: echo "Using Docker build"
+    # Build command (Docker handles this)
+    buildCommand: ""
 
