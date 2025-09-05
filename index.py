@@ -6,8 +6,8 @@ import os
 from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import logging
 
 # Configure logging
@@ -116,7 +116,7 @@ def get_database_connection():
         raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
     
     try:
-        conn = psycopg2.connect(database_url)
+        conn = psycopg.connect(database_url)
         return conn
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
@@ -179,7 +179,7 @@ async def run_migration():
                         "message": "Database already contains data. Migration skipped.",
                         "timestamp": datetime.utcnow().isoformat()
                     }
-            except psycopg2.Error:
+            except psycopg.Error:
                 logger.info("Tables don't exist yet. Proceeding with migration.")
             
             # Read and execute migration script
