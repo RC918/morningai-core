@@ -110,69 +110,22 @@ async def app_info():
     }
 
 def get_database_connection():
-    """Get database connection with robust error handling and DNS resolution fix"""
+    """Get database connection using single DSN direct connection (P0 fix)"""
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
     
     try:
-        # Parse and fix the DATABASE_URL for better compatibility
-        from urllib.parse import urlparse, urlunparse, parse_qs
-        
-        parsed = urlparse(database_url)
-        logger.info(f"Attempting database connection to {parsed.hostname}:{parsed.port}")
-        
-        # Ensure we have a clean connection string
-        # Fix common issues with Render DATABASE_URL
-        if parsed.scheme == 'postgres':
-            # Convert postgres:// to postgresql:// for better psycopg3 compatibility
-            parsed = parsed._replace(scheme='postgresql')
-        
-        # Ensure SSL is properly configured
-        query_params = parse_qs(parsed.query)
-        if 'sslmode' not in query_params:
-            if parsed.query:
-                new_query = parsed.query + '&sslmode=require'
-            else:
-                new_query = 'sslmode=require'
-            parsed = parsed._replace(query=new_query)
-        
-        # Reconstruct the URL
-        fixed_url = urlunparse(parsed)
-        
-        # Try connection with additional connection parameters for better reliability
-        conn_params = {
-            'host': parsed.hostname,
-            'port': parsed.port or 5432,
-            'dbname': parsed.path[1:] if parsed.path else 'postgres',
-            'user': parsed.username,
-            'password': parsed.password,
-            'sslmode': 'require',
-            'connect_timeout': 10,
-            'application_name': 'morningai-core'
-        }
-        
-        logger.info(f"Connecting with params: host={conn_params['host']}, port={conn_params['port']}, db={conn_params['dbname']}")
-        
-        # Try direct parameter connection first (more reliable than URL parsing)
-        conn = psycopg.connect(**conn_params)
-        logger.info("Database connection successful via parameters")
+        # A. 供應商原生連接字串直通 libpq - 不做任何解析或拼接
+        logger.info(f"Attempting direct DSN connection...")
+        conn = psycopg.connect(database_url, connect_timeout=5)
+        logger.info("Database connection successful via direct DSN")
         return conn
         
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         logger.error(f"Error type: {type(e).__name__}")
-        logger.error(f"Database URL format: {database_url[:50]}...")
-        
-        # Try fallback connection with original URL
-        try:
-            logger.info("Trying fallback connection with original URL...")
-            conn = psycopg.connect(database_url)
-            logger.info("Fallback connection successful")
-            return conn
-        except Exception as fallback_e:
-            logger.error(f"Fallback connection also failed: {fallback_e}")
-            raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
 
 @app.get("/healthz")
 async def comprehensive_health_check():
@@ -351,6 +304,58 @@ async def test_database():
     except Exception as e:
         logger.error(f"Database test error: {e}")
         raise HTTPException(status_code=500, detail=f"Database test failed: {str(e)}")
+
+@app.get("/db-diagnose")
+async def database_diagnose():
+    """B. 解析與埠快速鑑別 - 診斷 DATABASE_URL 格式和 DNS 解析"""
+    import socket
+    import urllib.parse as up
+    
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        return {"error": "DATABASE_URL not configured"}
+    
+    try:
+        # 解析 URL
+        u = up.urlparse(database_url)
+        
+        # 基本解析信息
+        diagnosis = {
+            "url_scheme": u.scheme,
+            "hostname": u.hostname,
+            "port": u.port,
+            "database": u.path[1:] if u.path else None,
+            "username": u.username,
+            "query_params": u.query,
+            "url_valid": bool(u.hostname and u.port)
+        }
+        
+        # DNS 解析測試
+        if u.hostname and u.port:
+            try:
+                addr_info = socket.getaddrinfo(u.hostname, u.port, proto=socket.IPPROTO_TCP)
+                diagnosis["dns_resolution"] = {
+                    "status": "success",
+                    "addresses": [addr[4][0] for addr in addr_info[:3]]  # 只顯示前3個IP
+                }
+            except Exception as dns_e:
+                diagnosis["dns_resolution"] = {
+                    "status": "failed",
+                    "error": str(dns_e)
+                }
+        else:
+            diagnosis["dns_resolution"] = {
+                "status": "skipped",
+                "reason": "hostname or port missing"
+            }
+        
+        return diagnosis
+        
+    except Exception as e:
+        return {
+            "error": f"Diagnosis failed: {str(e)}",
+            "url_preview": database_url[:50] + "..." if len(database_url) > 50 else database_url
+        }
 
 # 確保這是一個ASGI應用
 if __name__ == "__main__":
