@@ -1,5 +1,5 @@
 # MorningAI Core - Render.com Service Configuration
-# This file defines the infrastructure for staging and production environments
+# This file defines the infrastructure for staging environment
 
 services:
   # Main API Service
@@ -59,9 +59,6 @@ services:
     
     # Build command (if needed)
     buildCommand: echo "Using Docker build"
-    
-    # Start command (defined in Dockerfile)
-    # startCommand: uvicorn src.main:app --host 0.0.0.0 --port 8000
 
   # PostgreSQL Database
   - type: pserv
@@ -69,75 +66,11 @@ services:
     runtime: postgresql
     plan: free  # Free tier for staging
     region: oregon
-    
-    # Database configuration
-    databaseName: morningai_staging
-    databaseUser: morningai_user
-    
-    # Extensions
-    postgreSQLVersion: "15"
-    
-    # Environment variables for pgvector
-    envVars:
-      - key: POSTGRES_EXTENSIONS
-        value: vector
-    
-    # Backup configuration (for paid plans)
-    # backupRetentionDays: 7
 
   # Redis Cache
   - type: redis
     name: morningai-redis-staging
     plan: free  # Free tier for staging
     region: oregon
-    
-    # Redis configuration
     maxmemoryPolicy: allkeys-lru
-    
-    # Environment variables
-    envVars:
-      - key: REDIS_MAXMEMORY
-        value: 25mb  # Free tier limit
-
-# Production services (commented out for now)
-# - type: web
-#   name: morningai-core-production
-#   runtime: docker
-#   plan: standard  # Paid plan for production
-#   region: oregon
-#   branch: production
-#   rootDir: .
-#   dockerfilePath: cloud-deployment/docker/Dockerfile
-#   
-#   envVars:
-#     - key: ENVIRONMENT
-#       value: production
-#     - key: LOG_LEVEL
-#       value: warning
-#     - key: WORKERS
-#       value: 2
-#     # ... other production env vars
-#   
-#   healthCheckPath: /health
-#   autoDeploy: false  # Manual deployment for production
-#   
-#   # Custom domain (for paid plans)
-#   # customDomains:
-#   #   - api.morningai.com
-
-# - type: pserv
-#   name: morningai-postgres-production
-#   runtime: postgresql
-#   plan: standard
-#   region: oregon
-#   databaseName: morningai_production
-#   databaseUser: morningai_user
-#   postgreSQLVersion: "15"
-#   backupRetentionDays: 30
-
-# - type: redis
-#   name: morningai-redis-production
-#   plan: standard
-#   region: oregon
-#   maxmemoryPolicy: allkeys-lru
 
