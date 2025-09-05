@@ -1,5 +1,5 @@
 # MorningAI Core - Render.com Service Configuration
-# This file defines the infrastructure for staging environment
+# Simplified version - Web service only
 
 services:
   # Main API Service
@@ -24,32 +24,27 @@ services:
         value: 8000
       - key: PYTHONPATH
         value: /app
-      - key: DATABASE_URL
-        fromService:
-          type: pserv
-          name: morningai-postgres-staging
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: morningai-redis-staging
-          property: connectionString
-      - key: OPENAI_API_KEY
-        sync: false  # Set manually in Render dashboard
       - key: OPENAI_API_BASE
         value: https://api.openai.com/v1
-      - key: JWT_SECRET_KEY
-        generateValue: true
       - key: JWT_ALGORITHM
         value: HS256
       - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
       - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
         value: 7
-      - key: SENTRY_DSN
-        sync: false  # Set manually in Render dashboard
       - key: SENTRY_ENVIRONMENT
         value: staging
+      # Database and Redis URLs will be set manually after creating services
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: REDIS_URL
+        sync: false  # Set manually in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SENTRY_DSN
+        sync: false  # Set manually in Render dashboard
     
     # Health check configuration
     healthCheckPath: /health
@@ -59,18 +54,4 @@ services:
     
     # Build command (if needed)
     buildCommand: echo "Using Docker build"
-
-  # PostgreSQL Database
-  - type: pserv
-    name: morningai-postgres-staging
-    runtime: postgresql
-    plan: free  # Free tier for staging
-    region: oregon
-
-  # Redis Cache
-  - type: redis
-    name: morningai-redis-staging
-    plan: free  # Free tier for staging
-    region: oregon
-    maxmemoryPolicy: allkeys-lru
 
