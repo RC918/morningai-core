@@ -5,7 +5,14 @@ import sys
 import os
 from datetime import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+import psycopg2
+from psycopg2 import sql
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 print(f"Python version: {sys.version}")
 print("Starting MorningAI Core API...")
@@ -101,6 +108,159 @@ async def app_info():
         "timestamp": datetime.utcnow().isoformat(),
         "app_type": "ASGI Application"
     }
+
+def get_database_connection():
+    """Get database connection"""
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
+    
+    try:
+        conn = psycopg2.connect(database_url)
+        return conn
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+@app.get("/db-info")
+async def database_info():
+    """Database connection information"""
+    try:
+        conn = get_database_connection()
+        with conn.cursor() as cursor:
+            # Get database version
+            cursor.execute("SELECT version()")
+            db_version = cursor.fetchone()[0]
+            
+            # Check if tables exist
+            cursor.execute("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+            """)
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            # Get database size
+            cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()))")
+            db_size = cursor.fetchone()[0]
+            
+        conn.close()
+        
+        return {
+            "status": "connected",
+            "database_version": db_version,
+            "database_size": db_size,
+            "tables_count": len(tables),
+            "tables": tables,
+            "timestamp": datetime.utcnow().isoformat(),
+            "migration_status": "completed" if "tenants" in tables else "pending"
+        }
+        
+    except Exception as e:
+        logger.error(f"Database info error: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@app.post("/migrate")
+async def run_migration():
+    """Run database migration and seed"""
+    try:
+        conn = get_database_connection()
+        conn.autocommit = True
+        
+        with conn.cursor() as cursor:
+            # Check if migration has already been run
+            try:
+                cursor.execute("SELECT COUNT(*) FROM tenants")
+                count = cursor.fetchone()[0]
+                if count > 0:
+                    return {
+                        "status": "skipped",
+                        "message": "Database already contains data. Migration skipped.",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+            except psycopg2.Error:
+                logger.info("Tables don't exist yet. Proceeding with migration.")
+            
+            # Read and execute migration script
+            migration_file = '/opt/render/project/src/handoff/phase3/09-seed-and-migration/migration.sql'
+            if not os.path.exists(migration_file):
+                raise HTTPException(status_code=404, detail="Migration file not found")
+            
+            with open(migration_file, 'r', encoding='utf-8') as file:
+                migration_sql = file.read()
+            
+            # Execute migration
+            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
+            for statement in statements:
+                if statement:
+                    cursor.execute(statement)
+            
+            # Read and execute seed script
+            seed_file = '/opt/render/project/src/handoff/phase3/09-seed-and-migration/seed.sql'
+            if os.path.exists(seed_file):
+                with open(seed_file, 'r', encoding='utf-8') as file:
+                    seed_sql = file.read()
+                
+                statements = [stmt.strip() for stmt in seed_sql.split(';') if stmt.strip()]
+                for statement in statements:
+                    if statement:
+                        cursor.execute(statement)
+            
+            # Verify migration success
+            cursor.execute("SELECT COUNT(*) FROM tenants")
+            tenant_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM users")
+            user_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM roles")
+            role_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return {
+            "status": "success",
+            "message": "Database migration and seed completed successfully",
+            "results": {
+                "tenants_created": tenant_count,
+                "users_created": user_count,
+                "roles_created": role_count
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+
+@app.get("/db-test")
+async def test_database():
+    """Test database connection and basic queries"""
+    try:
+        conn = get_database_connection()
+        with conn.cursor() as cursor:
+            # Test basic query
+            cursor.execute("SELECT 1 as test")
+            result = cursor.fetchone()[0]
+            
+            # Test current timestamp
+            cursor.execute("SELECT NOW()")
+            timestamp = cursor.fetchone()[0]
+            
+        conn.close()
+        
+        return {
+            "status": "success",
+            "test_query_result": result,
+            "database_timestamp": timestamp.isoformat(),
+            "connection": "ok",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Database test error: {e}")
+        raise HTTPException(status_code=500, detail=f"Database test failed: {str(e)}")
 
 # 確保這是一個ASGI應用
 if __name__ == "__main__":
