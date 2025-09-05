@@ -1,20 +1,35 @@
 """
-MorningAI Core API - 修復Python 3.13兼容性問題
+MorningAI Core API - Modern FastAPI with Database Support
 """
 import sys
+import os
 from datetime import datetime
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 print(f"Python version: {sys.version}")
 print("Starting MorningAI Core API...")
 
-# 創建FastAPI應用 - 明確ASGI配置
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    print("=== MorningAI Core API Starting ===")
+    print(f"Python version: {sys.version}")
+    print(f"Platform: {sys.platform}")
+    print("ASGI application ready!")
+    yield
+    # Shutdown
+    print("=== MorningAI Core API Shutting Down ===")
+
+# 創建FastAPI應用 - 使用現代lifespan
 app = FastAPI(
     title="MorningAI Core API",
-    description="修復Python 3.13兼容性的版本",
-    version="1.0.0-fixed",
+    description="Modern FastAPI with Database Support",
+    version="2.0.0-modern",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 @app.get("/")
@@ -22,12 +37,13 @@ async def root():
     """根路徑健康檢查"""
     return {
         "status": "healthy",
-        "message": "MorningAI Core API - Python 3.13 Compatible Version!",
+        "message": "MorningAI Core API - Modern FastAPI Version!",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0-fixed",
+        "version": "2.0.0-modern",
         "platform": "render",
         "python_version": sys.version,
-        "app_type": "ASGI"
+        "app_type": "ASGI",
+        "database_url": "configured" if os.getenv("DATABASE_URL") else "not_configured"
     }
 
 @app.get("/health")
@@ -35,14 +51,15 @@ async def health_check():
     """健康檢查端點"""
     return {
         "status": "healthy",
-        "message": "All systems operational - Python 3.13 compatible",
+        "message": "All systems operational - Modern FastAPI",
         "timestamp": datetime.utcnow().isoformat(),
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "checks": {
             "api": "ok",
             "fastapi": "ok",
             "uvicorn": "ok",
-            "asgi": "ok"
+            "asgi": "ok",
+            "database": "configured" if os.getenv("DATABASE_URL") else "not_configured"
         }
     }
 
@@ -84,20 +101,6 @@ async def app_info():
         "timestamp": datetime.utcnow().isoformat(),
         "app_type": "ASGI Application"
     }
-
-# 應用事件處理
-@app.on_event("startup")
-async def startup_event():
-    """應用啟動事件"""
-    print("=== MorningAI Core API Starting ===")
-    print(f"Python version: {sys.version}")
-    print(f"Platform: {sys.platform}")
-    print("ASGI application ready!")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """應用關閉事件"""
-    print("=== MorningAI Core API Shutting Down ===")
 
 # 確保這是一個ASGI應用
 if __name__ == "__main__":
