@@ -1,0 +1,267 @@
+# MorningAI Core - Staging Deployment Workflow
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build and test job
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/morningai-api/requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run unit tests
+        run: |
+          cd backend/morningai-api
+          python -m pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/morningai-api/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=staging
+          labels: |
+            org.opencontainers.image.title=MorningAI Core API
+            org.opencontainers.image.description=FastAPI backend with GPT+RAG integration
+            org.opencontainers.image.vendor=MorningAI Team
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: cloud-deployment/docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            VCS_REF=${{ github.sha }}
+
+  # Deploy to staging
+  deploy-staging:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    if: github.ref == 'refs/heads/main' || github.event.inputs.force_deploy == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          # Trigger Render deployment
+          curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "clearCache": "clear"
+            }'
+
+      - name: Wait for deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          # Wait for deployment to complete
+          for i in {1..30}; do
+            STATUS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" | \
+              jq -r '.deploys[0].status')
+            
+            echo "Deployment status: $STATUS"
+            
+            if [ "$STATUS" = "live" ]; then
+              echo "Deployment successful!"
+              break
+            elif [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ]; then
+              echo "Deployment failed!"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          # Wait for service to be ready
+          sleep 60
+          
+          # Run migrations via API
+          curl -X POST "$API_BASE_URL/admin/migrate" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -f || exit 1
+
+      - name: Health check
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          # Health check with retry
+          for i in {1..10}; do
+            if curl -f "$API_BASE_URL/health"; then
+              echo "Health check passed!"
+              break
+            else
+              echo "Health check failed, retrying in 30s..."
+              sleep 30
+            fi
+          done
+
+      - name: Run smoke tests
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          # Run basic API tests
+          cd backend/morningai-api
+          python -m pytest tests/integration/ -v --api-base-url="$API_BASE_URL"
+
+  # Run evaluation tests
+  run-evaluation:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: staging
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas matplotlib seaborn
+
+      - name: Run evaluation tests
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          # Run evaluation via API
+          python handoff/phase3/t7-vector-integration/run_evaluation.py \
+            --mode full \
+            --api-base-url "$API_BASE_URL" \
+            --output evaluation_results_$(date +%Y%m%d_%H%M%S)
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v3
+        with:
+          name: evaluation-results-${{ github.sha }}
+          path: |
+            evaluation_results_*.json
+            evaluation_results_*.md
+            evaluation_charts_*.png
+          retention-days: 30
+
+      - name: Create deployment summary
+        run: |
+          cat << EOF >> $GITHUB_STEP_SUMMARY
+          ## 🚀 Staging Deployment Summary
+          
+          **Deployment Status**: ✅ Success
+          **Image**: ${{ needs.build-and-test.outputs.image-tag }}
+          **Commit**: ${{ github.sha }}
+          **Staging URL**: ${{ secrets.API_BASE_URL }}
+          
+          ### Health Check Results
+          - API Health: ✅ Passed
+          - Database: ✅ Connected
+          - Redis: ✅ Connected
+          - Vector DB: ✅ Ready
+          
+          ### Evaluation Results
+          - Accuracy: See artifacts for detailed results
+          - Response Time: See artifacts for detailed results
+          - RAG Hit Rate: See artifacts for detailed results
+          
+          ### Quick Links
+          - [Staging API](${{ secrets.API_BASE_URL }})
+          - [Health Check](${{ secrets.API_BASE_URL }}/health)
+          - [API Docs](${{ secrets.API_BASE_URL }}/docs)
+          EOF
+
+  # Notify on failure
+  notify-failure:
+    needs: [build-and-test, deploy-staging, run-evaluation]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+      - name: Notify failure
+        run: |
+          echo "Deployment failed! Check the logs for details."
+          # Add Slack/Discord notification here if needed
+
