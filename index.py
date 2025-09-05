@@ -110,27 +110,69 @@ async def app_info():
     }
 
 def get_database_connection():
-    """Get database connection with improved SSL handling"""
+    """Get database connection with robust error handling and DNS resolution fix"""
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
     
     try:
-        # For Render PostgreSQL, ensure SSL is properly configured
-        if 'sslmode' not in database_url:
-            if '?' in database_url:
-                database_url += '&sslmode=require'
-            else:
-                database_url += '?sslmode=require'
+        # Parse and fix the DATABASE_URL for better compatibility
+        from urllib.parse import urlparse, urlunparse, parse_qs
         
-        logger.info(f"Attempting database connection...")
-        conn = psycopg.connect(database_url)
-        logger.info("Database connection successful")
+        parsed = urlparse(database_url)
+        logger.info(f"Attempting database connection to {parsed.hostname}:{parsed.port}")
+        
+        # Ensure we have a clean connection string
+        # Fix common issues with Render DATABASE_URL
+        if parsed.scheme == 'postgres':
+            # Convert postgres:// to postgresql:// for better psycopg3 compatibility
+            parsed = parsed._replace(scheme='postgresql')
+        
+        # Ensure SSL is properly configured
+        query_params = parse_qs(parsed.query)
+        if 'sslmode' not in query_params:
+            if parsed.query:
+                new_query = parsed.query + '&sslmode=require'
+            else:
+                new_query = 'sslmode=require'
+            parsed = parsed._replace(query=new_query)
+        
+        # Reconstruct the URL
+        fixed_url = urlunparse(parsed)
+        
+        # Try connection with additional connection parameters for better reliability
+        conn_params = {
+            'host': parsed.hostname,
+            'port': parsed.port or 5432,
+            'dbname': parsed.path[1:] if parsed.path else 'postgres',
+            'user': parsed.username,
+            'password': parsed.password,
+            'sslmode': 'require',
+            'connect_timeout': 10,
+            'application_name': 'morningai-core'
+        }
+        
+        logger.info(f"Connecting with params: host={conn_params['host']}, port={conn_params['port']}, db={conn_params['dbname']}")
+        
+        # Try direct parameter connection first (more reliable than URL parsing)
+        conn = psycopg.connect(**conn_params)
+        logger.info("Database connection successful via parameters")
         return conn
+        
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
         logger.error(f"Database URL format: {database_url[:50]}...")
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        
+        # Try fallback connection with original URL
+        try:
+            logger.info("Trying fallback connection with original URL...")
+            conn = psycopg.connect(database_url)
+            logger.info("Fallback connection successful")
+            return conn
+        except Exception as fallback_e:
+            logger.error(f"Fallback connection also failed: {fallback_e}")
+            raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
 
 @app.get("/healthz")
 async def comprehensive_health_check():
