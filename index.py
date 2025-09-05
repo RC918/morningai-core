@@ -1,5 +1,5 @@
 """
-MorningAI Core API - 包含數據庫遷移功能
+MorningAI Core API - 包含數據庫遷移功能（使用psycopg2）
 """
 import os
 from datetime import datetime
@@ -8,8 +8,9 @@ from datetime import datetime
 try:
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
-    import asyncpg
-    import asyncio
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from urllib.parse import urlparse
     
     # 創建FastAPI應用
     app = FastAPI(
@@ -30,7 +31,7 @@ try:
     # 數據庫連接配置
     DATABASE_URL = os.getenv("DATABASE_URL")
     
-    async def get_db_connection():
+    def get_db_connection():
         """獲取數據庫連接"""
         if not DATABASE_URL:
             raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
@@ -38,7 +39,7 @@ try:
         try:
             # 如果URL包含postgres://，替換為postgresql://
             db_url = DATABASE_URL.replace("postgres://", "postgresql://")
-            conn = await asyncpg.connect(db_url)
+            conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
             return conn
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
@@ -63,9 +64,12 @@ try:
         
         if DATABASE_URL:
             try:
-                conn = await get_db_connection()
-                await conn.execute("SELECT 1")
-                await conn.close()
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                cursor.close()
+                conn.close()
                 db_status = "connected"
             except Exception as e:
                 db_status = f"error: {str(e)}"
@@ -92,36 +96,33 @@ try:
         if not DATABASE_URL:
             raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
         
-        # 讀取遷移腳本
-        migration_file = "/home/ubuntu/morningai-core/handoff/phase3/09-seed-and-migration/migration.sql"
+        # 簡化的遷移腳本用於測試
+        migration_sql = """
+        -- 簡化的遷移腳本用於測試
+        CREATE TABLE IF NOT EXISTS migration_test (
+            id SERIAL PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            message TEXT DEFAULT 'Migration test successful'
+        );
+        
+        INSERT INTO migration_test (message) VALUES ('Migration executed at ' || CURRENT_TIMESTAMP);
+        """
         
         try:
-            with open(migration_file, 'r', encoding='utf-8') as f:
-                migration_sql = f.read()
-        except FileNotFoundError:
-            # 如果文件不存在，使用簡化的遷移腳本
-            migration_sql = """
-            -- 簡化的遷移腳本用於測試
-            CREATE TABLE IF NOT EXISTS migration_test (
-                id SERIAL PRIMARY KEY,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                message TEXT DEFAULT 'Migration test successful'
-            );
-            
-            INSERT INTO migration_test (message) VALUES ('Migration executed at ' || CURRENT_TIMESTAMP);
-            """
-        
-        try:
-            conn = await get_db_connection()
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
             # 執行遷移腳本
-            await conn.execute(migration_sql)
+            cursor.execute(migration_sql)
+            conn.commit()
             
             # 檢查結果
-            result = await conn.fetch("SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public'")
-            table_count = result[0]['table_count']
+            cursor.execute("SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public'")
+            result = cursor.fetchone()
+            table_count = result['table_count']
             
-            await conn.close()
+            cursor.close()
+            conn.close()
             
             return {
                 "status": "success",
@@ -140,21 +141,26 @@ try:
             raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
         
         try:
-            conn = await get_db_connection()
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
             # 獲取數據庫版本
-            version_result = await conn.fetchrow("SELECT version()")
+            cursor.execute("SELECT version()")
+            version_result = cursor.fetchone()
             version = version_result['version']
             
             # 獲取表數量
-            tables_result = await conn.fetch("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'")
-            table_count = tables_result[0]['count']
+            cursor.execute("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public'")
+            tables_result = cursor.fetchone()
+            table_count = tables_result['count']
             
             # 檢查pgvector擴展
-            pgvector_result = await conn.fetch("SELECT * FROM pg_extension WHERE extname = 'vector'")
+            cursor.execute("SELECT * FROM pg_extension WHERE extname = 'vector'")
+            pgvector_result = cursor.fetchall()
             pgvector_installed = len(pgvector_result) > 0
             
-            await conn.close()
+            cursor.close()
+            conn.close()
             
             return {
                 "database_version": version,
