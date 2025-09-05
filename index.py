@@ -1,17 +1,18 @@
 """
-MorningAI Core API - 純FastAPI ASGI應用
+MorningAI Core API - 修復啟動期副作用的純FastAPI ASGI應用
 """
 import os
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# 創建FastAPI應用
+# 創建FastAPI應用 - 無啟動期副作用
 app = FastAPI(
     title="MorningAI Core API",
-    description="MorningAI 核心後端服務 - 包含數據庫功能",
+    description="MorningAI 核心後端服務 - 修復版本",
     version="1.0.0"
 )
 
@@ -24,25 +25,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 數據庫連接配置
-DATABASE_URL = os.getenv("DATABASE_URL")
+def get_database_url() -> Optional[str]:
+    """獲取數據庫URL並添加SSL模式"""
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # 確保使用SSL連接
+        if "sslmode=" not in database_url:
+            separator = "&" if "?" in database_url else "?"
+            database_url += f"{separator}sslmode=require"
+        # 替換postgres://為postgresql://
+        database_url = database_url.replace("postgres://", "postgresql://")
+    return database_url
 
 def get_db_connection():
-    """獲取數據庫連接"""
-    if not DATABASE_URL:
+    """請求依賴：獲取數據庫連接（延後初始化）"""
+    database_url = get_database_url()
+    if not database_url:
         raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
     
     try:
-        # 如果URL包含postgres://，替換為postgresql://
-        db_url = DATABASE_URL.replace("postgres://", "postgresql://")
-        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
         return conn
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
 
 @app.get("/")
 async def root():
-    """根路徑健康檢查"""
+    """根路徑健康檢查 - 無數據庫依賴"""
     return {
         "status": "healthy",
         "message": "MorningAI Core API is running successfully!",
@@ -50,15 +59,16 @@ async def root():
         "environment": "staging",
         "version": "1.0.0",
         "platform": "render",
-        "database_configured": bool(DATABASE_URL)
+        "database_configured": bool(get_database_url())
     }
 
 @app.get("/health")
 async def health_check():
-    """健康檢查端點"""
+    """健康檢查端點 - 包含數據庫連接測試"""
+    database_url = get_database_url()
     db_status = "not_configured"
     
-    if DATABASE_URL:
+    if database_url:
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -74,12 +84,13 @@ async def health_check():
         "status": "healthy",
         "message": "All systems operational",
         "timestamp": datetime.utcnow().isoformat(),
-        "database_status": db_status
+        "database_status": db_status,
+        "ssl_mode": "require" if database_url and "sslmode=require" in database_url else "not_set"
     }
 
 @app.get("/test")
 async def test_endpoint():
-    """測試端點"""
+    """測試端點 - 無副作用"""
     return {
         "message": "API test successful",
         "timestamp": datetime.utcnow().isoformat(),
@@ -88,10 +99,7 @@ async def test_endpoint():
 
 @app.post("/migrate")
 async def run_migration():
-    """執行數據庫遷移"""
-    if not DATABASE_URL:
-        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
-    
+    """執行數據庫遷移 - 請求時連接"""
     # 簡化的遷移腳本用於測試
     migration_sql = """
     -- 簡化的遷移腳本用於測試
@@ -132,10 +140,7 @@ async def run_migration():
 
 @app.get("/db-info")
 async def get_db_info():
-    """獲取數據庫信息"""
-    if not DATABASE_URL:
-        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
-    
+    """獲取數據庫信息 - 請求時連接"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -162,14 +167,24 @@ async def get_db_info():
             "database_version": version,
             "public_tables_count": table_count,
             "pgvector_installed": pgvector_installed,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "ssl_enabled": "sslmode=require" in get_database_url()
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
-# Vercel 處理器（如果需要）
-def handler(request):
-    """Vercel serverless 函數處理器"""
-    return app
+# 應用啟動事件（可選的清理方式）
+@app.on_event("startup")
+async def startup_event():
+    """應用啟動事件 - 無副作用記錄"""
+    print("MorningAI Core API starting up...")
+    print(f"Database configured: {bool(get_database_url())}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """應用關閉事件"""
+    print("MorningAI Core API shutting down...")
+
+# 確保只有一個ASGI應用，無WSGI後備
 
