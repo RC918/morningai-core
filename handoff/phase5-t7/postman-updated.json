@@ -1,0 +1,710 @@
+{
+  "info": {
+    "name": "MorningAI Core API - T+7 Vector Integration",
+    "description": "MorningAI 核心 API 測試集合 - 包含向量庫整合和 RAG 系統測試\n\n## 🚀 新功能測試 (T+7 更新)\n- ✅ 向量語義搜索測試\n- ✅ 增強聊天對話測試\n- ✅ 知識庫管理測試\n- ✅ 評測系統測試\n- ✅ 系統健康檢查\n\n## 📊 測試覆蓋\n- 認證系統: 7 個端點\n- 推薦系統: 8 個端點\n- 聊天系統: 12 個端點 (新增)\n- 知識管理: 5 個端點 (新增)\n- 評測系統: 3 個端點 (新增)\n- 系統監控: 1 個端點\n\n總計: 36 個測試請求",
+    "version": "3.1.0-t7",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "test-session-{{$randomUUID}}",
+      "type": "string"
+    },
+    {
+      "key": "evaluation_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局前置腳本",
+          "console.log('🚀 執行請求:', pm.info.requestName);",
+          "console.log('📍 URL:', pm.request.url.toString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局測試腳本",
+          "pm.test('響應時間 < 5秒', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('響應格式為 JSON', function () {",
+          "    pm.response.to.have.header('Content-Type');",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "",
+          "if (pm.response.code === 200 || pm.response.code === 201) {",
+          "    pm.test('成功響應包含必要字段', function () {",
+          "        const responseJson = pm.response.json();",
+          "        pm.expect(responseJson).to.be.an('object');",
+          "    });",
+          "}",
+          "",
+          "console.log('✅ 響應狀態:', pm.response.code, pm.response.status);",
+          "console.log('⏱️  響應時間:', pm.response.responseTime + 'ms');"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 認證系統",
+      "item": [
+        {
+          "name": "用戶登入",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', responseJson.access_token);",
+                  "    console.log('🔑 已保存 access_token');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@morningai.com\",\n  \"password\": \"user123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "獲取用戶資料",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔍 向量搜索系統",
+      "item": [
+        {
+          "name": "向量語義搜索 - 定價查詢",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('搜索結果不為空', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.results).to.be.an('array');",
+                  "    pm.expect(responseJson.results.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('相似度分數合理', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    responseJson.results.forEach(result => {",
+                  "        pm.expect(result.similarity).to.be.within(0, 1);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('查詢時間 < 1秒', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.query_time).to.be.below(1.0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"MorningAI的定價方案是什麼？\",\n  \"limit\": 5,\n  \"threshold\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vector/search",
+              "host": ["{{base_url}}"],
+              "path": ["vector", "search"]
+            }
+          }
+        },
+        {
+          "name": "向量語義搜索 - 技術查詢",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"如何整合API？\",\n  \"limit\": 3,\n  \"categories\": [\"technical\", \"api\"],\n  \"threshold\": 0.6\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vector/search",
+              "host": ["{{base_url}}"],
+              "path": ["vector", "search"]
+            }
+          }
+        },
+        {
+          "name": "向量語義搜索 - 空查詢測試",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('空查詢應返回 400 錯誤', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"\",\n  \"limit\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vector/search",
+              "host": ["{{base_url}}"],
+              "path": ["vector", "search"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 增強聊天系統",
+      "item": [
+        {
+          "name": "增強聊天 - 定價問題 (RAG)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('回應類型為 RAG', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.response_type).to.eql('rag');",
+                  "});",
+                  "",
+                  "pm.test('包含知識來源', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.sources).to.be.an('array');",
+                  "    pm.expect(responseJson.sources.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('信心度 > 0.8', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.confidence).to.be.above(0.8);",
+                  "});",
+                  "",
+                  "pm.test('處理時間 < 3秒', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.processing_time).to.be.below(3.0);",
+                  "});",
+                  "",
+                  "pm.test('包含建議問題', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.suggested_questions).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"你們的定價方案是什麼？\",\n  \"session_id\": \"{{session_id}}\",\n  \"use_rag\": true,\n  \"max_sources\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/enhanced",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "enhanced"]
+            }
+          }
+        },
+        {
+          "name": "增強聊天 - 後續問題",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"專業版和企業版有什麼差別？\",\n  \"session_id\": \"{{session_id}}\",\n  \"context_window\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/enhanced",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "enhanced"]
+            }
+          }
+        },
+        {
+          "name": "增強聊天 - 知識庫外問題 (GPT Fallback)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('回應類型為 GPT Fallback', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.response_type).to.be.oneOf(['gpt_fallback', 'general_chat']);",
+                  "});",
+                  "",
+                  "pm.test('知識來源為空', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.sources).to.be.an('array');",
+                  "    pm.expect(responseJson.sources.length).to.eql(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"今天天氣如何？\",\n  \"session_id\": \"{{session_id}}\",\n  \"use_rag\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/enhanced",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "enhanced"]
+            }
+          }
+        },
+        {
+          "name": "增強聊天 - 技術支援問題",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"如何整合你們的API？\",\n  \"session_id\": \"{{session_id}}\",\n  \"use_rag\": true,\n  \"max_sources\": 5,\n  \"temperature\": 0.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/enhanced",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "enhanced"]
+            }
+          }
+        },
+        {
+          "name": "增強聊天 - 長消息測試",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('長消息應正常處理', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.response).to.be.a('string');",
+                  "    pm.expect(responseJson.response.length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"我想了解你們的產品功能，包括定價方案、技術支援、API整合方式、安全性保障、以及如何開始使用。另外，我也想知道你們與競爭對手相比有什麼優勢，是否提供免費試用，以及企業級功能有哪些特色。請詳細介紹一下。\",\n  \"session_id\": \"{{session_id}}\",\n  \"use_rag\": true,\n  \"max_sources\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/enhanced",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "enhanced"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 知識庫管理",
+      "item": [
+        {
+          "name": "創建知識條目",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.collectionVariables.set('knowledge_id', responseJson.id);",
+                  "    console.log('📚 已保存 knowledge_id:', responseJson.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"測試知識條目\",\n  \"content\": \"這是一個測試用的知識條目，用於驗證知識庫管理功能。包含產品介紹、使用方法、常見問題等內容。\",\n  \"source\": \"test_knowledge\",\n  \"category\": \"測試\",\n  \"language\": \"zh-TW\",\n  \"tags\": [\"測試\", \"知識庫\", \"API\"],\n  \"priority\": \"medium\",\n  \"metadata\": {\n    \"author\": \"測試用戶\",\n    \"version\": \"1.0\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/knowledge",
+              "host": ["{{base_url}}"],
+              "path": ["knowledge"]
+            }
+          }
+        },
+        {
+          "name": "獲取知識條目列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/knowledge?page=1&limit=10&category=測試",
+              "host": ["{{base_url}}"],
+              "path": ["knowledge"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "測試"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "獲取知識條目詳情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/knowledge/{{knowledge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["knowledge", "{{knowledge_id}}"]
+            }
+          }
+        },
+        {
+          "name": "更新知識條目",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"更新後的測試知識條目\",\n  \"content\": \"這是更新後的測試知識條目內容，包含更多詳細信息和使用案例。\",\n  \"source\": \"test_knowledge_updated\",\n  \"category\": \"測試\",\n  \"language\": \"zh-TW\",\n  \"tags\": [\"測試\", \"知識庫\", \"API\", \"更新\"],\n  \"priority\": \"high\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/knowledge/{{knowledge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["knowledge", "{{knowledge_id}}"]
+            }
+          }
+        },
+        {
+          "name": "搜索知識條目",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/knowledge?search=測試&language=zh-TW",
+              "host": ["{{base_url}}"],
+              "path": ["knowledge"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "測試"
+                },
+                {
+                  "key": "language",
+                  "value": "zh-TW"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 評測系統",
+      "item": [
+        {
+          "name": "運行快速評測",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.collectionVariables.set('evaluation_id', responseJson.evaluation_id);",
+                  "    console.log('📊 已保存 evaluation_id:', responseJson.evaluation_id);",
+                  "    ",
+                  "    pm.test('評測完成', function () {",
+                  "        pm.expect(responseJson.evaluation_id).to.be.a('string');",
+                  "        pm.expect(responseJson.summary).to.be.an('object');",
+                  "    });",
+                  "    ",
+                  "    pm.test('準確率目標達成', function () {",
+                  "        pm.expect(responseJson.summary.overall_metrics.accuracy_target_met).to.be.true;",
+                  "    });",
+                  "    ",
+                  "    pm.test('響應時間目標達成', function () {",
+                  "        pm.expect(responseJson.summary.performance_metrics.response_time_target_met).to.be.true;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"queries\": [\n    {\n      \"id\": \"eval_001\",\n      \"query\": \"你們的定價方案是什麼？\",\n      \"category\": \"pricing\",\n      \"difficulty\": \"easy\",\n      \"expected_response_type\": \"rag\",\n      \"expected_sources\": [\"kb_002\"],\n      \"expected_keywords\": [\"基礎版\", \"專業版\", \"企業版\"],\n      \"ground_truth\": \"MorningAI 提供三種靈活的定價方案以滿足不同規模企業的需求\"\n    },\n    {\n      \"id\": \"eval_002\",\n      \"query\": \"如何整合API？\",\n      \"category\": \"technical\",\n      \"difficulty\": \"medium\",\n      \"expected_response_type\": \"rag\",\n      \"expected_sources\": [\"kb_004\"],\n      \"expected_keywords\": [\"API\", \"整合\", \"文檔\"],\n      \"ground_truth\": \"API 整合需要先獲取 API 密鑰，然後按照文檔進行配置\"\n    },\n    {\n      \"id\": \"eval_003\",\n      \"query\": \"今天天氣如何？\",\n      \"category\": \"general\",\n      \"difficulty\": \"easy\",\n      \"expected_response_type\": \"gpt_fallback\",\n      \"expected_sources\": [],\n      \"expected_keywords\": [],\n      \"ground_truth\": \"這不是我們知識庫涵蓋的內容\"\n    }\n  ],\n  \"config\": {\n    \"accuracy_threshold\": 0.95,\n    \"response_time_threshold\": 3.0\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/evaluation/run",
+              "host": ["{{base_url}}"],
+              "path": ["evaluation", "run"]
+            }
+          }
+        },
+        {
+          "name": "獲取評測報告",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/evaluation/{{evaluation_id}}/report",
+              "host": ["{{base_url}}"],
+              "path": ["evaluation", "{{evaluation_id}}", "report"]
+            }
+          }
+        },
+        {
+          "name": "獲取評測圖表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/evaluation/{{evaluation_id}}/charts",
+              "host": ["{{base_url}}"],
+              "path": ["evaluation", "{{evaluation_id}}", "charts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 系統監控",
+      "item": [
+        {
+          "name": "系統健康檢查",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('系統狀態健康', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.status).to.be.oneOf(['healthy', 'degraded']);",
+                  "});",
+                  "",
+                  "pm.test('資料庫連接正常', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.components.database.status).to.eql('healthy');",
+                  "});",
+                  "",
+                  "pm.test('向量資料庫正常', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.components.vector_db.status).to.eql('healthy');",
+                  "    pm.expect(responseJson.components.vector_db.vector_count).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('OpenAI API 連接正常', function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.components.openai_api.status).to.eql('healthy');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚀 推薦系統 (原有功能)",
+      "item": [
+        {
+          "name": "使用推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME2025\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/use",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "use"]
+            }
+          }
+        },
+        {
+          "name": "獲取推薦統計",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/referral/stats",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "stats"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

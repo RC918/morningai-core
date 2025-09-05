@@ -1,0 +1,835 @@
+# Chat 模組 OpenAPI 擴展
+# 此文件包含聊天系統的完整 API 規格，應合併到主 openapi.yaml 中
+
+# 新增的 paths
+paths:
+  # Chat 聊天系統 API
+  /chat/send:
+    post:
+      tags:
+        - chat
+      summary: 發送聊天消息
+      description: |
+        發送消息並獲取 AI 回應，支援 GPT+RAG 整合
+        
+        ## 功能特色
+        - **智能 Fallback**: RAG 無法回答時自動切換到 GPT
+        - **多輪對話**: 維持對話上下文和會話狀態
+        - **意圖分析**: 自動理解用戶需求和意圖
+        - **自動追問**: 當信息不足時主動詢問用戶
+        
+        ## 速率限制
+        - 聊天: 30條/小時
+        - GPT API: 20次/小時
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSendRequest'
+            example:
+              session_id: "550e8400-e29b-41d4-a716-446655440000"
+              message: "請介紹我們的定價方案"
+              context:
+                user_intent: "product_inquiry"
+                language: "zh-TW"
+      responses:
+        '200':
+          description: 消息發送成功，返回 AI 回應
+          headers:
+            X-RateLimit-Limit:
+              description: 速率限制數量
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              description: 剩餘請求次數
+              schema:
+                type: integer
+            X-RateLimit-Reset:
+              description: 限制重置時間
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSendResponse'
+              example:
+                success: true
+                data:
+                  message_id: "msg_123456"
+                  response: "我們提供三種定價方案：基礎版、專業版和企業版..."
+                  response_type: "rag_with_gpt_fallback"
+                  sources:
+                    - title: "定價頁面"
+                      url: "https://morningai.com/pricing"
+                      relevance: 0.95
+                  confidence: 0.92
+                  processing_time: 1.2
+        '400':
+          description: 請求參數錯誤
+        '429':
+          description: 速率限制超出
+        '403':
+          description: 權限不足
+
+  /chat/sessions:
+    get:
+      tags:
+        - chat
+      summary: 獲取聊天會話列表
+      description: 獲取當前用戶的聊天會話列表，支援分頁和搜索
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 頁碼
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: 每頁數量
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          description: 搜索關鍵詞
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: 會話列表獲取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionListResponse'
+
+    post:
+      tags:
+        - chat
+      summary: 創建新聊天會話
+      description: 創建一個新的聊天會話
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSessionCreateRequest'
+            example:
+              title: "產品諮詢"
+              metadata:
+                source: "web_chat"
+                category: "product_inquiry"
+      responses:
+        '201':
+          description: 會話創建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionResponse'
+
+  /chat/sessions/{session_id}:
+    get:
+      tags:
+        - chat
+      summary: 獲取聊天會話詳情
+      description: 獲取指定聊天會話的詳細信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 會話詳情獲取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionResponse'
+        '404':
+          description: 會話不存在
+
+    put:
+      tags:
+        - chat
+      summary: 更新聊天會話
+      description: 更新聊天會話的標題或元數據
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSessionUpdateRequest'
+      responses:
+        '200':
+          description: 會話更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionResponse'
+        '404':
+          description: 會話不存在
+
+    delete:
+      tags:
+        - chat
+      summary: 刪除聊天會話
+      description: 刪除指定的聊天會話及其所有消息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 會話刪除成功
+        '404':
+          description: 會話不存在
+
+  /chat/sessions/{session_id}/history:
+    get:
+      tags:
+        - chat
+      summary: 獲取聊天歷史
+      description: 獲取指定會話的聊天歷史記錄
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: 聊天歷史獲取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatHistoryResponse'
+        '404':
+          description: 會話不存在
+
+  /chat/knowledge/search:
+    post:
+      tags:
+        - chat
+      summary: 搜索知識庫
+      description: 在知識庫中搜索相關內容，支援語義搜索和關鍵詞搜索
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeSearchRequest'
+            example:
+              query: "定價方案"
+              top_k: 5
+              similarity_threshold: 0.7
+              search_type: "semantic"
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSearchResponse'
+
+  /chat/knowledge:
+    post:
+      tags:
+        - chat
+      summary: 創建知識庫條目
+      description: 創建新的知識庫條目 (需要管理員權限)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeCreateRequest'
+      responses:
+        '201':
+          description: 知識庫條目創建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
+        '403':
+          description: 權限不足
+
+  /chat/knowledge/{knowledge_id}:
+    put:
+      tags:
+        - chat
+      summary: 更新知識庫條目
+      description: 更新指定的知識庫條目 (需要管理員權限)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeUpdateRequest'
+      responses:
+        '200':
+          description: 知識庫條目更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeResponse'
+        '404':
+          description: 知識庫條目不存在
+        '403':
+          description: 權限不足
+
+    delete:
+      tags:
+        - chat
+      summary: 刪除知識庫條目
+      description: 刪除指定的知識庫條目 (需要管理員權限)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: knowledge_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 知識庫條目刪除成功
+        '404':
+          description: 知識庫條目不存在
+        '403':
+          description: 權限不足
+
+  /chat/feedback:
+    post:
+      tags:
+        - chat
+      summary: 提交聊天反饋
+      description: 對聊天回應提交反饋和評分，用於改進 AI 質量
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatFeedbackRequest'
+            example:
+              session_id: "550e8400-e29b-41d4-a716-446655440000"
+              message_id: "msg_123456"
+              score: 1
+              reason: "helpful"
+              comment: "回答很準確，幫助很大"
+      responses:
+        '201':
+          description: 反饋提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatFeedbackResponse'
+
+  /chat/stats:
+    get:
+      tags:
+        - chat
+      summary: 獲取聊天統計
+      description: 獲取聊天系統的使用統計信息 (需要管理員權限)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: 統計時間範圍
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: week
+      responses:
+        '200':
+          description: 統計信息獲取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatStatsResponse'
+        '403':
+          description: 權限不足
+
+# 新增的 schemas
+components:
+  schemas:
+    # Chat 相關 schemas
+    ChatSendRequest:
+      type: object
+      required:
+        - session_id
+        - message
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: 會話 ID
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: 用戶消息內容
+        context:
+          type: object
+          description: 額外的上下文信息
+          properties:
+            user_intent:
+              type: string
+              description: 用戶意圖
+            language:
+              type: string
+              description: 語言偏好
+            metadata:
+              type: object
+              description: 其他元數據
+
+    ChatSendResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            message_id:
+              type: string
+              description: 消息 ID
+            response:
+              type: string
+              description: AI 回應內容
+            response_type:
+              type: string
+              enum: [rag, gpt, rag_with_gpt_fallback]
+              description: 回應類型
+            sources:
+              type: array
+              description: 引用來源
+              items:
+                $ref: '#/components/schemas/ChatSource'
+            confidence:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: 回應信心分數
+            processing_time:
+              type: number
+              description: 處理時間（秒）
+            follow_up_questions:
+              type: array
+              description: 建議的後續問題
+              items:
+                type: string
+
+    ChatSource:
+      type: object
+      properties:
+        title:
+          type: string
+          description: 來源標題
+        url:
+          type: string
+          description: 來源 URL
+        content:
+          type: string
+          description: 相關內容片段
+        relevance:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 相關性分數
+
+    ChatSessionCreateRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 會話標題
+        metadata:
+          type: object
+          description: 會話元數據
+
+    ChatSessionUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 會話標題
+        metadata:
+          type: object
+          description: 會話元數據
+
+    ChatSessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        message_count:
+          type: integer
+        last_message_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    ChatSessionListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            sessions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChatSessionResponse'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+
+    ChatHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChatMessage'
+            pagination:
+              $ref: '#/components/schemas/PaginationInfo'
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+        response_type:
+          type: string
+          enum: [rag, gpt, rag_with_gpt_fallback]
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSource'
+        confidence:
+          type: number
+        processing_time:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    KnowledgeSearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: 搜索查詢
+        top_k:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 20
+          description: 返回結果數量
+        similarity_threshold:
+          type: number
+          default: 0.7
+          minimum: 0
+          maximum: 1
+          description: 相似度閾值
+        search_type:
+          type: string
+          enum: [semantic, keyword, hybrid]
+          default: semantic
+          description: 搜索類型
+
+    KnowledgeSearchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/KnowledgeItem'
+            total_count:
+              type: integer
+            search_time:
+              type: number
+
+    KnowledgeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content:
+          type: string
+        source:
+          type: string
+        url:
+          type: string
+        relevance_score:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    KnowledgeCreateRequest:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        content:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        source:
+          type: string
+        url:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+
+    KnowledgeUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        content:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        source:
+          type: string
+        url:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+
+    KnowledgeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/KnowledgeItem'
+
+    ChatFeedbackRequest:
+      type: object
+      required:
+        - session_id
+        - message_id
+        - score
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          enum: [-1, 0, 1]
+          description: 評分 (-1: 不滿意, 0: 一般, 1: 滿意)
+        reason:
+          type: string
+          enum: [helpful, accurate, irrelevant, incorrect, unclear]
+          description: 反饋原因
+        comment:
+          type: string
+          maxLength: 1000
+          description: 詳細評論
+
+    ChatFeedbackResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            feedback_id:
+              type: string
+              format: uuid
+            created_at:
+              type: string
+              format: date-time
+
+    ChatStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            total_sessions:
+              type: integer
+            total_messages:
+              type: integer
+            avg_messages_per_session:
+              type: number
+            avg_response_time:
+              type: number
+            accuracy_rate:
+              type: number
+            fallback_rate:
+              type: number
+            user_satisfaction:
+              type: number
+            top_intents:
+              type: array
+              items:
+                type: object
+                properties:
+                  intent:
+                    type: string
+                  count:
+                    type: integer
+            response_type_distribution:
+              type: object
+              properties:
+                rag:
+                  type: integer
+                gpt:
+                  type: integer
+                rag_with_gpt_fallback:
+                  type: integer
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+

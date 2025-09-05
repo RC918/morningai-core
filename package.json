@@ -1,0 +1,59 @@
+{
+  "name": "morningai-core",
+  "version": "1.0.0",
+  "description": "MorningAI Phase 3 Core Module (MVP)",
+  "private": true,
+  "workspaces": [
+    "frontend/morningai-web",
+    "backend/morningai-api",
+    "agent-hub",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend/morningai-web && pnpm run dev",
+    "dev:backend": "cd backend/morningai-api && source venv/bin/activate && python src/main.py",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend/morningai-web && pnpm run build",
+    "build:backend": "cd backend/morningai-api && source venv/bin/activate && pip freeze > requirements.txt",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend/morningai-web && pnpm run test",
+    "test:backend": "cd backend/morningai-api && source venv/bin/activate && python -m pytest",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend/morningai-web && pnpm run lint",
+    "lint:backend": "cd backend/morningai-api && source venv/bin/activate && flake8 src/",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "db:migrate": "cd backend/morningai-api && source venv/bin/activate && python -m alembic upgrade head",
+    "db:seed": "cd backend/morningai-api && source venv/bin/activate && python scripts/seed_data.py",
+    "setup": "npm run setup:backend && npm run setup:frontend",
+    "setup:backend": "cd backend/morningai-api && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
+    "setup:frontend": "cd frontend/morningai-web && pnpm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/morningai/core.git"
+  },
+  "keywords": [
+    "morningai",
+    "mvp",
+    "fastapi",
+    "react",
+    "postgresql",
+    "redis",
+    "openai",
+    "telegram",
+    "line"
+  ],
+  "author": "MorningAI Team",
+  "license": "MIT"
+}
+

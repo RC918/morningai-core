@@ -1,0 +1,143 @@
+[
+  {
+    "id": "kb_001",
+    "title": "MorningAI 產品介紹",
+    "content": "MorningAI 是一個基於人工智能的智能對話平台，專為企業提供客戶服務自動化解決方案。我們的平台結合了最新的 GPT 技術和檢索增強生成 (RAG) 技術，能夠提供準確、相關且具有上下文感知的回應。MorningAI 支援多語言對話，包括繁體中文、簡體中文和英文，並且可以與現有的客服系統無縫整合。",
+    "source": "product_overview",
+    "category": "產品介紹",
+    "language": "zh-TW",
+    "tags": ["產品", "介紹", "AI", "對話"],
+    "url": "https://morningai.com/product",
+    "metadata": {
+      "priority": "high",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_002",
+    "title": "定價方案詳情",
+    "content": "MorningAI 提供三種靈活的定價方案以滿足不同規模企業的需求：\n\n**基礎版 (NT$99/月)**\n- 每月 1,000 次對話\n- 基本聊天機器人功能\n- 電子郵件支援\n- 基礎分析報告\n\n**專業版 (NT$299/月)**\n- 每月 5,000 次對話\n- 高級 AI 功能\n- 自定義知識庫\n- API 訪問權限\n- 優先技術支援\n- 詳細分析儀表板\n\n**企業版 (NT$999/月)**\n- 無限制對話次數\n- 所有高級功能\n- 專屬客戶經理\n- 24/7 技術支援\n- 自定義整合\n- 白標解決方案\n- 高級安全功能\n\n所有方案都提供 14 天免費試用期，無需信用卡。",
+    "source": "pricing_page",
+    "category": "定價",
+    "language": "zh-TW",
+    "tags": ["定價", "方案", "費用", "試用"],
+    "url": "https://morningai.com/pricing",
+    "metadata": {
+      "priority": "high",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_003",
+    "title": "技術支援服務",
+    "content": "MorningAI 提供全方位的技術支援服務，確保您的系統運行順暢：\n\n**支援管道**\n- 線上幫助中心：24/7 自助服務\n- 電子郵件支援：support@morningai.com\n- 即時聊天：工作日 9:00-18:00\n- 電話支援：企業版客戶專享\n\n**回應時間**\n- 基礎版：48 小時內回應\n- 專業版：24 小時內回應\n- 企業版：4 小時內回應，緊急問題 1 小時內\n\n**支援內容**\n- 系統設定和配置\n- API 整合協助\n- 故障排除\n- 最佳實踐建議\n- 培訓和教學\n\n**自助資源**\n- 詳細的 API 文檔\n- 視頻教學課程\n- 常見問題解答\n- 社群論壇",
+    "source": "support_page",
+    "category": "技術支援",
+    "language": "zh-TW",
+    "tags": ["支援", "客服", "幫助", "聯繫"],
+    "url": "https://morningai.com/support",
+    "metadata": {
+      "priority": "medium",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_004",
+    "title": "API 整合指南",
+    "content": "MorningAI 提供強大的 RESTful API，讓您可以輕鬆將我們的 AI 對話功能整合到您的應用程式中：\n\n**認證方式**\n- 使用 JWT Bearer Token 進行認證\n- API 金鑰管理透過控制台進行\n\n**主要端點**\n- POST /api/v1/chat/send - 發送聊天消息\n- GET /api/v1/chat/sessions - 獲取會話列表\n- POST /api/v1/chat/sessions - 創建新會話\n- POST /api/v1/knowledge/search - 搜索知識庫\n\n**速率限制**\n- 基礎版：每分鐘 60 次請求\n- 專業版：每分鐘 300 次請求\n- 企業版：每分鐘 1000 次請求\n\n**SDK 支援**\n- JavaScript/Node.js\n- Python\n- PHP\n- Java\n- C#\n\n**Webhook 支援**\n- 即時接收對話事件\n- 自定義回調 URL\n- 安全簽名驗證",
+    "source": "api_docs",
+    "category": "技術文檔",
+    "language": "zh-TW",
+    "tags": ["API", "整合", "開發", "SDK"],
+    "url": "https://docs.morningai.com/api",
+    "metadata": {
+      "priority": "high",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_005",
+    "title": "安全性和隱私保護",
+    "content": "MorningAI 非常重視數據安全和用戶隱私，我們實施了多層次的安全措施：\n\n**數據加密**\n- 傳輸中加密：所有 API 通信使用 TLS 1.3\n- 靜態加密：數據庫和文件存儲使用 AES-256 加密\n- 端到端加密：敏感對話內容可選擇端到端加密\n\n**訪問控制**\n- 基於角色的訪問控制 (RBAC)\n- 多因素認證 (MFA)\n- IP 白名單限制\n- API 金鑰輪換\n\n**合規性**\n- GDPR 合規：完整的數據保護和用戶權利\n- ISO 27001 認證\n- SOC 2 Type II 報告\n- 定期安全審計\n\n**數據處理**\n- 數據最小化原則\n- 自動 PII 檢測和遮蔽\n- 可配置的數據保留期限\n- 安全的數據刪除\n\n**監控和審計**\n- 24/7 安全監控\n- 異常行為檢測\n- 完整的審計日誌\n- 事件響應計劃",
+    "source": "security_page",
+    "category": "安全性",
+    "language": "zh-TW",
+    "tags": ["安全", "隱私", "GDPR", "加密"],
+    "url": "https://morningai.com/security",
+    "metadata": {
+      "priority": "high",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_006",
+    "title": "使用教學：建立第一個聊天機器人",
+    "content": "歡迎使用 MorningAI！以下是建立您第一個聊天機器人的詳細步驟：\n\n**步驟 1：註冊和登入**\n1. 訪問 https://app.morningai.com\n2. 點擊「開始免費試用」\n3. 填寫註冊信息並驗證電子郵件\n4. 登入到控制台\n\n**步驟 2：創建機器人**\n1. 在控制台點擊「創建新機器人」\n2. 輸入機器人名稱和描述\n3. 選擇語言設定（繁體中文、簡體中文、英文）\n4. 設定基本個性和語調\n\n**步驟 3：配置知識庫**\n1. 上傳您的 FAQ 文檔或網站內容\n2. 系統會自動處理和索引內容\n3. 測試知識庫搜索功能\n4. 調整搜索相關性設定\n\n**步驟 4：測試和優化**\n1. 使用內建的測試工具進行對話測試\n2. 查看對話日誌和分析報告\n3. 根據用戶反饋調整回應\n4. 持續優化機器人性能\n\n**步驟 5：部署**\n1. 選擇部署方式（網站嵌入、API 整合等）\n2. 獲取嵌入代碼或 API 憑證\n3. 在您的網站或應用中整合\n4. 監控運行狀況",
+    "source": "tutorial",
+    "category": "教學",
+    "language": "zh-TW",
+    "tags": ["教學", "入門", "設定", "機器人"],
+    "url": "https://docs.morningai.com/getting-started",
+    "metadata": {
+      "priority": "medium",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_007",
+    "title": "常見問題解答",
+    "content": "以下是用戶最常詢問的問題和解答：\n\n**Q: MorningAI 支援哪些語言？**\nA: 目前支援繁體中文、簡體中文和英文。我們計劃在未來添加更多語言支援。\n\n**Q: 可以免費試用嗎？**\nA: 是的，所有方案都提供 14 天免費試用，無需信用卡。\n\n**Q: 如何取消訂閱？**\nA: 您可以隨時在控制台的「帳戶設定」中取消訂閱，取消後服務將在當前計費周期結束時停止。\n\n**Q: 數據會被用於訓練 AI 模型嗎？**\nA: 不會。我們承諾不會使用客戶數據來訓練我們的 AI 模型。您的數據完全屬於您。\n\n**Q: 可以自定義機器人的外觀嗎？**\nA: 是的，專業版和企業版用戶可以自定義聊天界面的顏色、字體和佈局。\n\n**Q: 支援多個網站使用同一個機器人嗎？**\nA: 是的，您可以在多個網站上部署同一個機器人，或為不同網站創建不同的機器人。\n\n**Q: 如何提高機器人的回應準確性？**\nA: 定期更新知識庫內容、分析對話日誌、根據用戶反饋調整設定，以及使用我們的 A/B 測試功能。\n\n**Q: 有 SLA 保證嗎？**\nA: 企業版客戶享有 99.9% 的正常運行時間 SLA 保證。",
+    "source": "faq",
+    "category": "常見問題",
+    "language": "zh-TW",
+    "tags": ["FAQ", "問題", "解答", "幫助"],
+    "url": "https://morningai.com/faq",
+    "metadata": {
+      "priority": "medium",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_008",
+    "title": "企業級功能介紹",
+    "content": "MorningAI 企業版為大型組織提供了強大的企業級功能：\n\n**高級分析和報告**\n- 自定義儀表板和 KPI 追蹤\n- 對話品質分析和情感分析\n- 用戶行為分析和轉換追蹤\n- 導出詳細報告（PDF、Excel）\n\n**多租戶管理**\n- 支援多個部門或品牌\n- 獨立的知識庫和設定\n- 統一的管理控制台\n- 跨租戶的統計和分析\n\n**高級整合**\n- CRM 系統整合（Salesforce、HubSpot）\n- 客服平台整合（Zendesk、Intercom）\n- 企業通訊工具整合（Slack、Teams）\n- 自定義 Webhook 和 API\n\n**安全和合規**\n- 單點登入 (SSO) 支援\n- 企業級加密和安全控制\n- 審計日誌和合規報告\n- 數據駐留選項\n\n**專屬支援**\n- 專屬客戶成功經理\n- 優先技術支援\n- 定期業務回顧會議\n- 自定義培訓和諮詢\n\n**擴展性**\n- 無限制的對話量\n- 高可用性部署\n- 負載平衡和自動擴展\n- 災難恢復計劃",
+    "source": "enterprise_features",
+    "category": "企業功能",
+    "language": "zh-TW",
+    "tags": ["企業", "功能", "分析", "整合"],
+    "url": "https://morningai.com/enterprise",
+    "metadata": {
+      "priority": "medium",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_009",
+    "title": "系統狀態和維護",
+    "content": "MorningAI 致力於提供穩定可靠的服務，以下是我們的系統狀態和維護信息：\n\n**系統狀態監控**\n- 即時系統狀態：https://status.morningai.com\n- 99.9% 正常運行時間保證（企業版）\n- 24/7 系統監控和告警\n- 自動故障轉移和恢復\n\n**定期維護**\n- 每月第一個週日 02:00-04:00 (UTC+8)\n- 維護期間可能出現短暫服務中斷\n- 提前 48 小時通知所有用戶\n- 緊急維護會立即通知\n\n**性能指標**\n- API 響應時間：< 200ms (95th percentile)\n- 聊天回應時間：< 2 秒\n- 系統可用性：99.95%\n- 數據備份：每日自動備份\n\n**事件響應**\n- P1 (緊急)：15 分鐘內響應\n- P2 (高)：1 小時內響應\n- P3 (中)：4 小時內響應\n- P4 (低)：24 小時內響應\n\n**聯繫方式**\n- 系統狀態更新：status@morningai.com\n- 緊急事件報告：emergency@morningai.com\n- 一般技術支援：support@morningai.com",
+    "source": "system_status",
+    "category": "系統狀態",
+    "language": "zh-TW",
+    "tags": ["狀態", "維護", "監控", "可用性"],
+    "url": "https://status.morningai.com",
+    "metadata": {
+      "priority": "low",
+      "last_updated": "2025-01-05"
+    }
+  },
+  {
+    "id": "kb_010",
+    "title": "最佳實踐指南",
+    "content": "為了幫助您充分利用 MorningAI 平台，我們整理了以下最佳實踐建議：\n\n**知識庫優化**\n- 保持內容更新和準確性\n- 使用清晰的標題和結構化內容\n- 避免重複或矛盾的信息\n- 定期檢查和清理過時內容\n- 使用標籤和分類組織內容\n\n**對話設計**\n- 設定清晰的機器人個性和語調\n- 提供有用的預設問題和快速回復\n- 設計自然的對話流程\n- 準備適當的無法回答時的回應\n- 提供人工客服的轉接選項\n\n**性能監控**\n- 定期查看對話分析報告\n- 監控用戶滿意度評分\n- 追蹤常見問題和回應準確性\n- 使用 A/B 測試優化回應\n- 設定關鍵指標的告警\n\n**用戶體驗**\n- 確保聊天界面在各種設備上正常顯示\n- 提供清晰的使用說明\n- 設定合理的回應時間期望\n- 收集和回應用戶反饋\n- 提供多種聯繫方式\n\n**安全考量**\n- 定期更新 API 金鑰\n- 限制敏感信息的處理\n- 監控異常使用模式\n- 實施適當的訪問控制\n- 定期備份重要配置",
+    "source": "best_practices",
+    "category": "最佳實踐",
+    "language": "zh-TW",
+    "tags": ["最佳實踐", "優化", "指南", "建議"],
+    "url": "https://docs.morningai.com/best-practices",
+    "metadata": {
+      "priority": "medium",
+      "last_updated": "2025-01-05"
+    }
+  }
+]
+

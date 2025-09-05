@@ -1,0 +1,267 @@
+@startuml MorningAI_Core_ERD
+!define TABLE(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define PK(x) <b><color:#b8861b><&key></color> x</b>
+!define FK(x) <color:#aaaaaa><&key></color> x
+!define UNIQUE(x) <color:#green><&asterisk></color> x
+
+' 租戶表
+TABLE(tenants, "租戶表\n(tenants)") {
+  PK(id): UUID
+  UNIQUE(slug): VARCHAR(100)
+  name: VARCHAR(255)
+  description: TEXT
+  is_active: BOOLEAN
+  is_trial: BOOLEAN
+  settings: JSON
+  max_users: INTEGER
+  max_storage_mb: INTEGER
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 用戶表
+TABLE(users, "用戶表\n(users)") {
+  PK(id): UUID
+  FK(tenant_id): UUID
+  UNIQUE(email): VARCHAR(255)
+  UNIQUE(username): VARCHAR(100)
+  display_name: VARCHAR(255)
+  password_hash: VARCHAR(255)
+  is_email_verified: BOOLEAN
+  email_verification_token: VARCHAR(255)
+  is_active: BOOLEAN
+  is_superuser: BOOLEAN
+  first_name: VARCHAR(100)
+  last_name: VARCHAR(100)
+  avatar_url: VARCHAR(500)
+  bio: TEXT
+  language: VARCHAR(10)
+  timezone: VARCHAR(50)
+  UNIQUE(referral_code): VARCHAR(20)
+  FK(referred_by_id): UUID
+  last_login_at: TIMESTAMP
+  last_login_ip: VARCHAR(45)
+  login_count: INTEGER
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 角色表
+TABLE(roles, "角色表\n(roles)") {
+  PK(id): UUID
+  UNIQUE(name): VARCHAR(100)
+  display_name: VARCHAR(255)
+  description: TEXT
+  is_active: BOOLEAN
+  is_system: BOOLEAN
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 權限表
+TABLE(permissions, "權限表\n(permissions)") {
+  PK(id): UUID
+  UNIQUE(name): VARCHAR(100)
+  display_name: VARCHAR(255)
+  description: TEXT
+  category: VARCHAR(50)
+  is_active: BOOLEAN
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 用戶角色關聯表
+TABLE(user_roles, "用戶角色關聯表\n(user_roles)") {
+  PK(id): UUID
+  FK(user_id): UUID
+  FK(role_id): UUID
+  FK(granted_by_id): UUID
+  granted_at: TIMESTAMP
+  expires_at: TIMESTAMP
+  is_active: BOOLEAN
+}
+
+' 角色權限關聯表
+TABLE(role_permissions, "角色權限關聯表\n(role_permissions)") {
+  PK(id): UUID
+  FK(role_id): UUID
+  FK(permission_id): UUID
+  FK(granted_by_id): UUID
+  granted_at: TIMESTAMP
+  is_active: BOOLEAN
+}
+
+' 推薦碼表
+TABLE(referral_codes, "推薦碼表\n(referral_codes)") {
+  PK(id): UUID
+  UNIQUE(code): VARCHAR(20)
+  FK(owner_id): UUID
+  max_uses: INTEGER
+  current_uses: INTEGER
+  is_active: BOOLEAN
+  expires_at: TIMESTAMP
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 推薦關係表
+TABLE(referral_relations, "推薦關係表\n(referral_relations)") {
+  PK(id): UUID
+  FK(referrer_id): UUID
+  FK(referred_id): UUID
+  FK(referral_code_id): UUID
+  reward_given: BOOLEAN
+  reward_amount: INTEGER
+  created_at: TIMESTAMP
+}
+
+' 聊天會話表
+TABLE(chat_sessions, "聊天會話表\n(chat_sessions)") {
+  PK(id): UUID
+  FK(user_id): UUID
+  title: VARCHAR(255)
+  context: JSON
+  is_active: BOOLEAN
+  message_count: INTEGER
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 聊天消息表
+TABLE(chat_messages, "聊天消息表\n(chat_messages)") {
+  PK(id): UUID
+  FK(session_id): UUID
+  content: TEXT
+  role: VARCHAR(20)
+  model: VARCHAR(50)
+  tokens_used: INTEGER
+  rag_sources: JSON
+  confidence_score: FLOAT
+  is_fallback: BOOLEAN
+  processing_time_ms: INTEGER
+  metadata: JSON
+  created_at: TIMESTAMP
+}
+
+' CMS內容表
+TABLE(cms_contents, "CMS內容表\n(cms_contents)") {
+  PK(id): UUID
+  FK(tenant_id): UUID
+  FK(author_id): UUID
+  slug: VARCHAR(255)
+  content_type: VARCHAR(50)
+  status: VARCHAR(20)
+  is_featured: BOOLEAN
+  meta_title: VARCHAR(255)
+  meta_description: TEXT
+  meta_keywords: TEXT
+  sort_order: INTEGER
+  category: VARCHAR(100)
+  tags: JSON
+  published_at: TIMESTAMP
+  scheduled_at: TIMESTAMP
+  view_count: INTEGER
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' CMS內容多語言表
+TABLE(cms_content_i18n, "CMS內容多語言表\n(cms_content_i18n)") {
+  PK(id): UUID
+  FK(content_id): UUID
+  language: VARCHAR(10)
+  title: VARCHAR(255)
+  excerpt: TEXT
+  content: TEXT
+  is_default: BOOLEAN
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 通知表
+TABLE(notifications, "通知表\n(notifications)") {
+  PK(id): UUID
+  FK(tenant_id): UUID
+  FK(user_id): UUID
+  FK(sender_id): UUID
+  title: VARCHAR(255)
+  content: TEXT
+  notification_type: VARCHAR(50)
+  priority: VARCHAR(20)
+  channels: JSON
+  status: VARCHAR(20)
+  is_read: BOOLEAN
+  scheduled_at: TIMESTAMP
+  sent_at: TIMESTAMP
+  external_ids: JSON
+  error_message: TEXT
+  retry_count: INTEGER
+  metadata: JSON
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 通知設置表
+TABLE(notification_settings, "通知設置表\n(notification_settings)") {
+  PK(id): UUID
+  FK(user_id): UUID
+  notification_type: VARCHAR(50)
+  telegram_enabled: BOOLEAN
+  telegram_chat_id: VARCHAR(100)
+  line_enabled: BOOLEAN
+  line_user_id: VARCHAR(100)
+  email_enabled: BOOLEAN
+  push_enabled: BOOLEAN
+  max_per_day: INTEGER
+  max_per_week: INTEGER
+  quiet_hours_start: VARCHAR(5)
+  quiet_hours_end: VARCHAR(5)
+  created_at: TIMESTAMP
+  updated_at: TIMESTAMP
+}
+
+' 審計日誌表
+TABLE(audit_logs, "審計日誌表\n(audit_logs)") {
+  PK(id): UUID
+  FK(tenant_id): UUID
+  FK(user_id): UUID
+  action: VARCHAR(100)
+  resource_type: VARCHAR(50)
+  resource_id: VARCHAR(100)
+  description: TEXT
+  old_values: JSON
+  new_values: JSON
+  ip_address: VARCHAR(45)
+  user_agent: TEXT
+  request_id: VARCHAR(100)
+  success: BOOLEAN
+  error_message: TEXT
+  metadata: JSON
+  created_at: TIMESTAMP
+}
+
+' 關係定義
+tenants ||--o{ users : "has many"
+users ||--o{ user_roles : "has many"
+roles ||--o{ user_roles : "has many"
+roles ||--o{ role_permissions : "has many"
+permissions ||--o{ role_permissions : "has many"
+users ||--o{ referral_codes : "owns"
+users ||--o{ referral_relations : "refers"
+users ||--o{ referral_relations : "referred by"
+referral_codes ||--o{ referral_relations : "used in"
+users ||--o{ chat_sessions : "has many"
+chat_sessions ||--o{ chat_messages : "contains"
+tenants ||--o{ cms_contents : "has many"
+users ||--o{ cms_contents : "authors"
+cms_contents ||--o{ cms_content_i18n : "has translations"
+tenants ||--o{ notifications : "has many"
+users ||--o{ notifications : "receives"
+users ||--o{ notifications : "sends"
+users ||--o{ notification_settings : "has settings"
+tenants ||--o{ audit_logs : "has logs"
+users ||--o{ audit_logs : "performs actions"
+users ||--o{ users : "refers (self-reference)"
+
+@enduml
+

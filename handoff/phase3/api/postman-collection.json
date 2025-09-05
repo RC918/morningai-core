@@ -1,0 +1,770 @@
+{
+  "info": {
+    "name": "MorningAI Core API",
+    "description": "MorningAI Phase 3 核心模組 API 測試集合\n\n包含認證系統和推薦系統的完整測試案例。\n\n## 使用說明\n1. 導入此集合到 Postman\n2. 設置環境變數 `base_url` 為 API 服務器地址\n3. 執行 \"用戶登入\" 請求獲取 access_token\n4. access_token 會自動設置到環境變數中\n5. 其他請求會自動使用此 token\n\n## 測試帳戶\n- admin@morningai.com / admin123 (系統管理員)\n- manager@morningai.com / manager123 (租戶管理員)\n- user@morningai.com / user123 (一般用戶)\n- demo@morningai.com / demo123 (Demo 用戶)\n\n## 測試推薦碼\n- WELCOME2025 (admin 擁有，1000次使用)\n- FRIEND50 (manager 擁有，50次使用)\n- DEMO100 (demo 擁有，100次使用)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "morningai-core-api",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "認證系統",
+      "item": [
+        {
+          "name": "用戶註冊",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"NewUser123\",\n  \"username\": \"newuser\",\n  \"display_name\": \"New User\",\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"referral_code\": \"WELCOME2025\",\n  \"language\": \"zh-TW\",\n  \"timezone\": \"Asia/Taipei\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "註冊新用戶帳戶，支援推薦碼功能"
+          },
+          "response": []
+        },
+        {
+          "name": "用戶登入",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+                  "    console.log('Access token saved:', response.access_token.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@morningai.com\",\n  \"password\": \"user123\",\n  \"remember_me\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "用戶登入並獲取 JWT 訪問令牌"
+          },
+          "response": []
+        },
+        {
+          "name": "管理員登入",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+                  "    console.log('Admin access token saved:', response.access_token.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@morningai.com\",\n  \"password\": \"admin123\",\n  \"remember_me\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "管理員登入"
+          },
+          "response": []
+        },
+        {
+          "name": "租戶管理員登入",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+                  "    console.log('Manager access token saved:', response.access_token.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@morningai.com\",\n  \"password\": \"manager123\",\n  \"remember_me\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "租戶管理員登入"
+          },
+          "response": []
+        },
+        {
+          "name": "刷新令牌",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.access_token);",
+                  "    console.log('Token refreshed:', response.access_token.substring(0, 20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "使用刷新令牌獲取新的訪問令牌"
+          },
+          "response": []
+        },
+        {
+          "name": "獲取用戶資料",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "獲取當前用戶的詳細資料"
+          },
+          "response": []
+        },
+        {
+          "name": "更新用戶資料",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Updated User\",\n  \"bio\": \"Updated bio\",\n  \"language\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "更新當前用戶的基本資料"
+          },
+          "response": []
+        },
+        {
+          "name": "更改密碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"user123\",\n  \"new_password\": \"NewPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "change-password"]
+            },
+            "description": "更改當前用戶的密碼"
+          },
+          "response": []
+        },
+        {
+          "name": "用戶登出",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "登出當前用戶"
+          },
+          "response": []
+        }
+      ],
+      "description": "用戶認證和授權相關操作"
+    },
+    {
+      "name": "推薦系統",
+      "item": [
+        {
+          "name": "驗證推薦碼 - 有效",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/referral/validate/WELCOME2025",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "validate", "WELCOME2025"]
+            },
+            "description": "驗證有效的推薦碼"
+          },
+          "response": []
+        },
+        {
+          "name": "驗證推薦碼 - 無效",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/referral/validate/INVALID",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "validate", "INVALID"]
+            },
+            "description": "驗證無效的推薦碼"
+          },
+          "response": []
+        },
+        {
+          "name": "使用推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FRIEND50\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/use",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "use"]
+            },
+            "description": "使用推薦碼建立推薦關係"
+          },
+          "response": []
+        },
+        {
+          "name": "創建推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"custom_code\": \"MANAGER2025\",\n  \"max_uses\": 50,\n  \"expires_at\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/codes",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes"]
+            },
+            "description": "創建新的推薦碼（需要 referral.create 權限）"
+          },
+          "response": []
+        },
+        {
+          "name": "創建推薦碼 - 自動生成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_uses\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/codes",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes"]
+            },
+            "description": "創建自動生成的推薦碼"
+          },
+          "response": []
+        },
+        {
+          "name": "獲取推薦碼列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/referral/codes?page=1&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "獲取當前用戶的推薦碼列表"
+          },
+          "response": []
+        },
+        {
+          "name": "更新推薦碼",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_uses\": 200,\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/codes/{{referral_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes", "{{referral_code_id}}"]
+            },
+            "description": "更新推薦碼設置（需要先設置 referral_code_id 變數）"
+          },
+          "response": []
+        },
+        {
+          "name": "停用推薦碼",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/referral/codes/{{referral_code_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes", "{{referral_code_id}}"]
+            },
+            "description": "停用指定的推薦碼（需要先設置 referral_code_id 變數）"
+          },
+          "response": []
+        },
+        {
+          "name": "獲取推薦統計",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/referral/stats",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "stats"]
+            },
+            "description": "獲取當前用戶的推薦統計信息"
+          },
+          "response": []
+        },
+        {
+          "name": "獲取推薦排行榜",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/referral/leaderboard?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "leaderboard"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "獲取推薦排行榜"
+          },
+          "response": []
+        }
+      ],
+      "description": "推薦碼管理和推薦關係操作"
+    },
+    {
+      "name": "錯誤測試",
+      "item": [
+        {
+          "name": "註冊 - 重複郵箱",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@morningai.com\",\n  \"password\": \"Test123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "測試重複郵箱註冊錯誤"
+          },
+          "response": []
+        },
+        {
+          "name": "註冊 - 無效推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"Test123456\",\n  \"referral_code\": \"INVALID\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "測試無效推薦碼註冊錯誤"
+          },
+          "response": []
+        },
+        {
+          "name": "註冊 - 弱密碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"weak\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "測試弱密碼驗證錯誤"
+          },
+          "response": []
+        },
+        {
+          "name": "登入 - 錯誤密碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@morningai.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "測試錯誤密碼登入錯誤"
+          },
+          "response": []
+        },
+        {
+          "name": "登入 - 不存在用戶",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nonexistent@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "測試不存在用戶登入錯誤"
+          },
+          "response": []
+        },
+        {
+          "name": "無權限創建推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"custom_code\": \"USERCODE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/codes",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "codes"]
+            },
+            "description": "測試一般用戶無權限創建推薦碼錯誤（需要先用一般用戶登入）"
+          },
+          "response": []
+        },
+        {
+          "name": "使用自己的推薦碼",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"DEMO100\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/referral/use",
+              "host": ["{{base_url}}"],
+              "path": ["referral", "use"]
+            },
+            "description": "測試使用自己推薦碼錯誤（需要先用 demo 用戶登入）"
+          },
+          "response": []
+        },
+        {
+          "name": "無效 JWT 令牌",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid_token"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "測試無效 JWT 令牌錯誤"
+          },
+          "response": []
+        }
+      ],
+      "description": "各種錯誤情況的測試案例"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 在每個請求前檢查是否需要 access_token",
+          "if (pm.request.headers.has('Authorization')) {",
+          "    const token = pm.collectionVariables.get('access_token');",
+          "    if (!token) {",
+          "        console.log('Warning: No access token found. Please login first.');",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局測試腳本",
+          "pm.test('Response time is less than 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has correct Content-Type', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "",
+          "// 檢查速率限制標頭",
+          "if (pm.response.headers.has('X-RateLimit-Limit')) {",
+          "    console.log('Rate Limit:', pm.response.headers.get('X-RateLimit-Limit'));",
+          "    console.log('Rate Remaining:', pm.response.headers.get('X-RateLimit-Remaining'));",
+          "}"
+        ]
+      }
+    }
+  ]
+}
+

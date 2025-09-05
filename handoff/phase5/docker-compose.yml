@@ -1,0 +1,184 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 資料庫
+  morningai-db:
+    image: postgres:15-alpine
+    container_name: morningai-db
+    environment:
+      POSTGRES_DB: morningai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migration.sql:/docker-entrypoint-initdb.d/01-migration.sql
+      - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - morningai-network
+
+  # Redis 緩存
+  morningai-redis:
+    image: redis:7-alpine
+    container_name: morningai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - morningai-network
+
+  # FastAPI 應用
+  morningai-api:
+    build:
+      context: ../../backend/morningai-api
+      dockerfile: Dockerfile
+    container_name: morningai-api
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@morningai-db:5432/morningai
+      - REDIS_URL=redis://morningai-redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key}
+      - APP_ENV=development
+      - DEBUG=true
+    ports:
+      - "8000:8000"
+    depends_on:
+      morningai-db:
+        condition: service_healthy
+      morningai-redis:
+        condition: service_healthy
+    volumes:
+      - ../../backend/morningai-api:/app
+      - api_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - morningai-network
+
+  # pgAdmin (可選，用於資料庫管理)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: morningai-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@morningai.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - morningai-db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - morningai-network
+    profiles:
+      - tools
+
+  # Redis Commander (可選，用於 Redis 管理)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: morningai-redis-commander
+    environment:
+      REDIS_HOSTS: local:morningai-redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - morningai-redis
+    networks:
+      - morningai-network
+    profiles:
+      - tools
+
+  # Prometheus (可選，用於監控)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: morningai-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - morningai-network
+    profiles:
+      - monitoring
+
+  # Grafana (可選，用於監控儀表板)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: morningai-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - morningai-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  api_logs:
+    driver: local
+  pgadmin_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  morningai-network:
+    driver: bridge
+
+# 使用說明：
+# 
+# 基本啟動：
+# docker-compose up -d
+#
+# 包含管理工具：
+# docker-compose --profile tools up -d
+#
+# 包含監控：
+# docker-compose --profile monitoring up -d
+#
+# 全部啟動：
+# docker-compose --profile tools --profile monitoring up -d
+#
+# 查看日誌：
+# docker-compose logs -f morningai-api
+#
+# 停止服務：
+# docker-compose down
+#
+# 清理數據：
+# docker-compose down -v
+

@@ -1,0 +1,1386 @@
+openapi: 3.0.3
+info:
+  title: MorningAI Core API
+  description: |
+    MorningAI Phase 3 核心模組 API 規格文檔
+    
+    ## 功能概述
+    - **用戶認證系統**: 註冊、登入、JWT 令牌管理
+    - **推薦系統**: 推薦碼生成、使用、統計和排行榜
+    - **RBAC 權限控制**: 基於角色的訪問控制
+    - **速率限制**: 防止 API 濫用
+    - **租戶隔離**: 多租戶數據隔離
+    
+    ## 認證方式
+    使用 Bearer Token (JWT) 進行認證：
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    
+    ## 錯誤處理
+    所有錯誤響應遵循統一格式：
+    ```json
+    {
+      "success": false,
+      "message": "錯誤描述",
+      "errors": ["詳細錯誤信息"]
+    }
+    ```
+    
+    ## 速率限制
+    API 實施速率限制，響應標頭包含：
+    - `X-RateLimit-Limit`: 限制數量
+    - `X-RateLimit-Remaining`: 剩餘次數
+    - `X-RateLimit-Reset`: 重置時間
+  version: 1.0.0
+  contact:
+    name: MorningAI Team
+    email: support@morningai.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.morningai.com/api/v1
+    description: 生產環境
+  - url: https://staging-api.morningai.com/api/v1
+    description: 測試環境
+  - url: http://localhost:8000/api/v1
+    description: 本地開發環境
+
+tags:
+  - name: 認證
+    description: 用戶認證和授權相關操作
+  - name: 推薦系統
+    description: 推薦碼管理和推薦關係操作
+
+paths:
+  # 認證相關 API
+  /auth/register:
+    post:
+      tags: [認證]
+      summary: 用戶註冊
+      description: |
+        註冊新用戶帳戶，支援推薦碼功能
+        
+        **功能特色:**
+        - 自動分配到預設租戶
+        - 支援推薦碼驗證和使用
+        - 自動生成用戶推薦碼
+        - 密碼強度驗證
+        - 速率限制保護 (5次/小時)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '200':
+          description: 註冊成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                success: true
+                message: "註冊成功"
+                data:
+                  user_id: "550e8400-e29b-41d4-a716-446655440000"
+                  email: "user@example.com"
+                  referral_code: "USER2025"
+        '400':
+          description: 註冊失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 請求數據驗證失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '429':
+          description: 速率限制超出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags: [認證]
+      summary: 用戶登入
+      description: |
+        用戶登入並獲取 JWT 訪問令牌
+        
+        **功能特色:**
+        - JWT 令牌認證
+        - 支援記住我功能
+        - 自動更新登入統計
+        - 速率限制保護 (10次/小時)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: 登入成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: 認證失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 速率限制超出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [認證]
+      summary: 刷新令牌
+      description: 使用刷新令牌獲取新的訪問令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: 刷新令牌無效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/profile:
+    get:
+      tags: [認證]
+      summary: 獲取用戶資料
+      description: 獲取當前用戶的詳細資料，包含角色和權限信息
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 用戶資料
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [認證]
+      summary: 更新用戶資料
+      description: 更新當前用戶的基本資料
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/change-password:
+    post:
+      tags: [認證]
+      summary: 更改密碼
+      description: |
+        更改當前用戶的密碼
+        
+        **安全特色:**
+        - 驗證舊密碼
+        - 密碼強度檢查
+        - 速率限制保護 (5次/小時)
+        - 審計日誌記錄
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: 密碼更改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: 舊密碼錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 速率限制超出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [認證]
+      summary: 用戶登出
+      description: 登出當前用戶（記錄日誌）
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # 推薦系統相關 API
+  /referral/codes:
+    post:
+      tags: [推薦系統]
+      summary: 創建推薦碼
+      description: |
+        創建新的推薦碼
+        
+        **功能特色:**
+        - 支援自定義推薦碼
+        - 可設置使用次數限制
+        - 可設置過期時間
+        - 需要 `referral.create` 權限
+        - 速率限制保護 (10次/小時)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralCodeCreate'
+      responses:
+        '200':
+          description: 推薦碼創建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+              example:
+                success: true
+                message: "推薦碼創建成功"
+                data:
+                  referral_code_id: "990e8400-e29b-41d4-a716-446655440001"
+                  code: "FRIEND2025"
+        '400':
+          description: 創建失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 速率限制超出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [推薦系統]
+      summary: 獲取推薦碼列表
+      description: |
+        獲取當前用戶的推薦碼列表
+        
+        **功能特色:**
+        - 分頁顯示
+        - 包含使用統計
+        - 需要 `referral.read` 權限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 頁碼
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: size
+          in: query
+          description: 每頁大小
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 推薦碼列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReferralCodes'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /referral/codes/{referral_code_id}:
+    put:
+      tags: [推薦系統]
+      summary: 更新推薦碼
+      description: |
+        更新推薦碼設置
+        
+        **限制:**
+        - 只能更新自己的推薦碼
+        - 需要 `referral.create` 權限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: referral_code_id
+          in: path
+          required: true
+          description: 推薦碼ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralCodeUpdate'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+        '400':
+          description: 更新失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 推薦碼不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [推薦系統]
+      summary: 停用推薦碼
+      description: |
+        停用指定的推薦碼
+        
+        **限制:**
+        - 只能停用自己的推薦碼
+        - 需要 `referral.create` 權限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: referral_code_id
+          in: path
+          required: true
+          description: 推薦碼ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 停用成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 推薦碼不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /referral/use:
+    post:
+      tags: [推薦系統]
+      summary: 使用推薦碼
+      description: |
+        使用推薦碼建立推薦關係
+        
+        **功能特色:**
+        - 驗證推薦碼有效性
+        - 防止重複使用
+        - 防止自我推薦
+        - 速率限制保護 (5次/小時)
+        - 自動發放獎勵
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReferralCodeUse'
+      responses:
+        '200':
+          description: 推薦碼使用成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+              example:
+                success: true
+                message: "推薦碼使用成功"
+                data:
+                  user_id: "550e8400-e29b-41d4-a716-446655440000"
+                  code: "FRIEND2025"
+        '400':
+          description: 推薦碼使用失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_code:
+                  summary: 推薦碼不存在
+                  value:
+                    success: false
+                    message: "推薦碼不存在"
+                expired_code:
+                  summary: 推薦碼已過期
+                  value:
+                    success: false
+                    message: "推薦碼已過期"
+                exhausted_code:
+                  summary: 使用次數已達上限
+                  value:
+                    success: false
+                    message: "推薦碼使用次數已達上限"
+                self_referral:
+                  summary: 不能使用自己的推薦碼
+                  value:
+                    success: false
+                    message: "不能使用自己的推薦碼"
+                already_used:
+                  summary: 已經使用過推薦碼
+                  value:
+                    success: false
+                    message: "您已經使用過推薦碼"
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: 速率限制超出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /referral/validate/{code}:
+    get:
+      tags: [推薦系統]
+      summary: 驗證推薦碼
+      description: |
+        驗證推薦碼是否有效
+        
+        **功能特色:**
+        - 檢查推薦碼存在性
+        - 檢查有效期和使用次數
+        - 返回推薦碼詳細信息
+        - 無需認證即可使用
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: 推薦碼
+          schema:
+            type: string
+            maxLength: 20
+          example: "FRIEND2025"
+      responses:
+        '200':
+          description: 驗證結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralCodeValidation'
+              examples:
+                valid_code:
+                  summary: 有效的推薦碼
+                  value:
+                    valid: true
+                    code: "FRIEND2025"
+                    owner_name: "John Doe"
+                    remaining_uses: 75
+                    expires_at: "2025-12-31T23:59:59Z"
+                    message: "推薦碼有效"
+                invalid_code:
+                  summary: 無效的推薦碼
+                  value:
+                    valid: false
+                    code: "INVALID"
+                    message: "推薦碼不存在"
+
+  /referral/stats:
+    get:
+      tags: [推薦系統]
+      summary: 獲取推薦統計
+      description: |
+        獲取當前用戶的推薦統計信息
+        
+        **包含內容:**
+        - 推薦碼列表
+        - 推薦統計數據
+        - 最近推薦記錄
+        - 需要 `referral.read` 權限
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 推薦統計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralStats'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /referral/leaderboard:
+    get:
+      tags: [推薦系統]
+      summary: 獲取推薦排行榜
+      description: |
+        獲取推薦排行榜
+        
+        **功能特色:**
+        - 按推薦數量排序
+        - 支援租戶隔離
+        - 需要 `referral.read` 權限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 排行榜數量限制
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 推薦排行榜
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReferralLeaderboard'
+        '401':
+          description: 未認證
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer Token 認證
+        
+        獲取方式：
+        1. 使用 `/auth/login` 端點登入
+        2. 從響應中獲取 `access_token`
+        3. 在請求標頭中添加：`Authorization: Bearer <access_token>`
+
+  schemas:
+    # 認證相關模型
+    UserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: 電子郵件地址
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: 密碼（至少8位，包含大小寫字母和數字）
+          example: "SecurePass123"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: 用戶名（可選）
+          example: "john_doe"
+        display_name:
+          type: string
+          maxLength: 255
+          description: 顯示名稱（可選）
+          example: "John Doe"
+        first_name:
+          type: string
+          maxLength: 100
+          description: 名字（可選）
+          example: "John"
+        last_name:
+          type: string
+          maxLength: 100
+          description: 姓氏（可選）
+          example: "Doe"
+        referral_code:
+          type: string
+          maxLength: 20
+          description: 推薦碼（可選）
+          example: "FRIEND2025"
+        language:
+          type: string
+          description: 語言偏好
+          default: "zh-TW"
+          example: "zh-TW"
+        timezone:
+          type: string
+          description: 時區
+          default: "Asia/Taipei"
+          example: "Asia/Taipei"
+
+    UserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: 電子郵件地址
+          example: "user@example.com"
+        password:
+          type: string
+          description: 密碼
+          example: "SecurePass123"
+        remember_me:
+          type: boolean
+          description: 記住我
+          default: false
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: 訪問令牌
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: 刷新令牌
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: 令牌類型
+          default: "bearer"
+        expires_in:
+          type: integer
+          description: 過期時間（秒）
+          example: 3600
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: 刷新令牌
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    PasswordChangeRequest:
+      type: object
+      required:
+        - old_password
+        - new_password
+      properties:
+        old_password:
+          type: string
+          description: 舊密碼
+          example: "OldPass123"
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: 新密碼
+          example: "NewSecurePass456"
+
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - display_name
+        - language
+        - timezone
+        - referral_code
+        - is_email_verified
+        - is_active
+        - roles
+        - permissions
+        - tenant_name
+        - login_count
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 用戶ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        email:
+          type: string
+          format: email
+          description: 電子郵件地址
+          example: "user@example.com"
+        username:
+          type: string
+          nullable: true
+          description: 用戶名
+          example: "john_doe"
+        display_name:
+          type: string
+          description: 顯示名稱
+          example: "John Doe"
+        first_name:
+          type: string
+          nullable: true
+          description: 名字
+          example: "John"
+        last_name:
+          type: string
+          nullable: true
+          description: 姓氏
+          example: "Doe"
+        avatar_url:
+          type: string
+          nullable: true
+          description: 頭像URL
+          example: "https://example.com/avatar.jpg"
+        bio:
+          type: string
+          nullable: true
+          description: 個人簡介
+          example: "Software developer"
+        language:
+          type: string
+          description: 語言偏好
+          example: "zh-TW"
+        timezone:
+          type: string
+          description: 時區
+          example: "Asia/Taipei"
+        referral_code:
+          type: string
+          description: 推薦碼
+          example: "USER2025"
+        is_email_verified:
+          type: boolean
+          description: 郵箱是否已驗證
+          example: true
+        is_active:
+          type: boolean
+          description: 帳戶是否活躍
+          example: true
+        roles:
+          type: array
+          items:
+            type: string
+          description: 用戶角色
+          example: ["user"]
+        permissions:
+          type: array
+          items:
+            type: string
+          description: 用戶權限
+          example: ["user.read", "chat.create"]
+        tenant_name:
+          type: string
+          description: 租戶名稱
+          example: "Demo Company"
+        login_count:
+          type: integer
+          description: 登入次數
+          example: 15
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最後登入時間
+          example: "2025-09-05T10:30:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: 創建時間
+          example: "2025-09-01T08:00:00Z"
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: 用戶名
+          example: "john_doe_updated"
+        display_name:
+          type: string
+          maxLength: 255
+          description: 顯示名稱
+          example: "John Doe Jr."
+        first_name:
+          type: string
+          maxLength: 100
+          description: 名字
+          example: "John"
+        last_name:
+          type: string
+          maxLength: 100
+          description: 姓氏
+          example: "Doe Jr."
+        bio:
+          type: string
+          maxLength: 1000
+          description: 個人簡介
+          example: "Senior software developer"
+        avatar_url:
+          type: string
+          maxLength: 500
+          description: 頭像URL
+          example: "https://example.com/new_avatar.jpg"
+        language:
+          type: string
+          description: 語言偏好
+          example: "en"
+        timezone:
+          type: string
+          description: 時區
+          example: "America/New_York"
+
+    # 推薦系統相關模型
+    ReferralCodeCreate:
+      type: object
+      properties:
+        custom_code:
+          type: string
+          maxLength: 20
+          pattern: '^[A-Z0-9]+$'
+          description: 自定義推薦碼（只能包含大寫字母和數字）
+          example: "FRIEND2025"
+        max_uses:
+          type: integer
+          minimum: 1
+          description: 最大使用次數
+          example: 100
+        expires_at:
+          type: string
+          format: date-time
+          description: 過期時間
+          example: "2025-12-31T23:59:59Z"
+
+    ReferralCodeUpdate:
+      type: object
+      properties:
+        max_uses:
+          type: integer
+          minimum: 1
+          description: 最大使用次數
+          example: 200
+        expires_at:
+          type: string
+          format: date-time
+          description: 過期時間
+          example: "2025-12-31T23:59:59Z"
+        is_active:
+          type: boolean
+          description: 是否啟用
+          example: true
+
+    ReferralCodeUse:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          maxLength: 20
+          description: 推薦碼
+          example: "FRIEND2025"
+
+    ReferralCodeInfo:
+      type: object
+      required:
+        - id
+        - code
+        - owner_id
+        - owner_name
+        - current_uses
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 推薦碼ID
+          example: "990e8400-e29b-41d4-a716-446655440001"
+        code:
+          type: string
+          description: 推薦碼
+          example: "FRIEND2025"
+        owner_id:
+          type: string
+          format: uuid
+          description: 擁有者ID
+          example: "880e8400-e29b-41d4-a716-446655440002"
+        owner_name:
+          type: string
+          description: 擁有者名稱
+          example: "John Doe"
+        max_uses:
+          type: integer
+          nullable: true
+          description: 最大使用次數
+          example: 100
+        current_uses:
+          type: integer
+          description: 當前使用次數
+          example: 25
+        is_active:
+          type: boolean
+          description: 是否啟用
+          example: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 過期時間
+          example: "2025-12-31T23:59:59Z"
+        created_at:
+          type: string
+          format: date-time
+          description: 創建時間
+          example: "2025-09-01T08:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新時間
+          example: "2025-09-05T10:30:00Z"
+
+    ReferralRelationInfo:
+      type: object
+      required:
+        - id
+        - referrer_id
+        - referrer_name
+        - referred_id
+        - referred_name
+        - referral_code_id
+        - referral_code
+        - reward_given
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 推薦關係ID
+          example: "bb0e8400-e29b-41d4-a716-446655440001"
+        referrer_id:
+          type: string
+          format: uuid
+          description: 推薦人ID
+          example: "880e8400-e29b-41d4-a716-446655440002"
+        referrer_name:
+          type: string
+          description: 推薦人名稱
+          example: "John Doe"
+        referred_id:
+          type: string
+          format: uuid
+          description: 被推薦人ID
+          example: "880e8400-e29b-41d4-a716-446655440003"
+        referred_name:
+          type: string
+          description: 被推薦人名稱
+          example: "Jane Smith"
+        referral_code_id:
+          type: string
+          format: uuid
+          description: 推薦碼ID
+          example: "990e8400-e29b-41d4-a716-446655440001"
+        referral_code:
+          type: string
+          description: 推薦碼
+          example: "FRIEND2025"
+        reward_given:
+          type: boolean
+          description: 是否已發放獎勵
+          example: true
+        reward_amount:
+          type: integer
+          nullable: true
+          description: 獎勵金額
+          example: 100
+        created_at:
+          type: string
+          format: date-time
+          description: 創建時間
+          example: "2025-09-05T10:30:00Z"
+
+    ReferralStats:
+      type: object
+      required:
+        - referral_codes
+        - total_referrals
+        - rewarded_referrals
+        - total_rewards
+        - recent_referrals
+      properties:
+        referral_codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferralCodeInfo'
+          description: 推薦碼列表
+        total_referrals:
+          type: integer
+          description: 總推薦數
+          example: 25
+        rewarded_referrals:
+          type: integer
+          description: 已獎勵推薦數
+          example: 20
+        total_rewards:
+          type: integer
+          description: 總獎勵金額
+          example: 2000
+        recent_referrals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferralRelationInfo'
+          description: 最近推薦記錄
+
+    ReferralLeaderboard:
+      type: object
+      required:
+        - user_id
+        - display_name
+        - email
+        - referral_count
+        - total_rewards
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: 用戶ID
+          example: "880e8400-e29b-41d4-a716-446655440002"
+        display_name:
+          type: string
+          description: 顯示名稱
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: 電子郵件
+          example: "john@example.com"
+        referral_count:
+          type: integer
+          description: 推薦數量
+          example: 25
+        total_rewards:
+          type: integer
+          description: 總獎勵金額
+          example: 2000
+
+    ReferralCodeValidation:
+      type: object
+      required:
+        - valid
+        - code
+        - message
+      properties:
+        valid:
+          type: boolean
+          description: 推薦碼是否有效
+          example: true
+        code:
+          type: string
+          description: 推薦碼
+          example: "FRIEND2025"
+        owner_name:
+          type: string
+          nullable: true
+          description: 擁有者名稱
+          example: "John Doe"
+        remaining_uses:
+          type: integer
+          nullable: true
+          description: 剩餘使用次數
+          example: 75
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 過期時間
+          example: "2025-12-31T23:59:59Z"
+        message:
+          type: string
+          description: 驗證消息
+          example: "推薦碼有效"
+
+    PaginatedReferralCodes:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - size
+        - pages
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferralCodeInfo'
+          description: 推薦碼列表
+        total:
+          type: integer
+          description: 總數
+          example: 100
+        page:
+          type: integer
+          description: 當前頁
+          example: 1
+        size:
+          type: integer
+          description: 每頁大小
+          example: 20
+        pages:
+          type: integer
+          description: 總頁數
+          example: 5
+
+    # 通用響應模型
+    AuthResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: 操作是否成功
+          example: true
+        message:
+          type: string
+          description: 響應消息
+          example: "操作成功"
+        data:
+          type: object
+          nullable: true
+          description: 響應數據
+          additionalProperties: true
+
+    ReferralResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: 操作是否成功
+          example: true
+        message:
+          type: string
+          description: 響應消息
+          example: "操作成功"
+        data:
+          type: object
+          nullable: true
+          description: 響應數據
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: 操作是否成功
+          example: false
+        message:
+          type: string
+          description: 錯誤消息
+          example: "操作失敗"
+        error:
+          type: string
+          description: 錯誤詳情
+          example: "詳細錯誤信息"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - errors
+      properties:
+        success:
+          type: boolean
+          description: 操作是否成功
+          example: false
+        message:
+          type: string
+          description: 錯誤消息
+          example: "請求數據驗證失敗"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                description: 錯誤位置
+              msg:
+                type: string
+                description: 錯誤消息
+              type:
+                type: string
+                description: 錯誤類型
+          description: 驗證錯誤詳情
+
