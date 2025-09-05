@@ -107,3 +107,6 @@ def handler(request):
     """Vercel serverless 函數處理器"""
     return app
 
+# 為了確保兼容性，也提供 app 的直接導出
+__all__ = ['app', 'handler']
+
