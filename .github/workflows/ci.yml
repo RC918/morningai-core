@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, staging ]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'constraints.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: pip install -r requirements.txt -c constraints.txt
+
+      - name: Run tests
+        run: pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('package-lock.json', 'yarn.lock') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else yarn install --frozen-lockfile; fi
+      - name: Lint & build
+        run: |
+          if [ -f package.json ]; then npm run lint --if-present && npm run build --if-present; fi
+

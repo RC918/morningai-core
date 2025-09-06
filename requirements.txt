@@ -1,7 +1,8 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic==2.9.2
-openai==1.106.1
+fastapi==0.115.*
+uvicorn[standard]==0.30.*
+pydantic==2.*
+line-bot-sdk==3.5.*
+openai==1.51.*
+pytest==8.*
 sentry-sdk[fastapi]
-pytest==8.3.2
 
