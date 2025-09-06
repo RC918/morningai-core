@@ -1,36 +1,23 @@
-# MorningAI Core API Dependencies
-# B段修復 - 按照指令C段依賴對齊
+# 最小化依賴 - 備用方案
+# 如果完整版requirements.txt有問題，可以使用這個
 
-# FastAPI核心
-fastapi>=0.111
-uvicorn[standard]>=0.30
+# FastAPI核心 (必需)
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
 
-# HTTP客戶端
-httpx>=0.27
+# 基本依賴
+pydantic>=2.0.0
+python-multipart>=0.0.6
 
-# 數據驗證
-pydantic[email]>=2.8
-email-validator>=2.2
+# JWT (簡化版本)
+PyJWT>=2.8.0
 
 # 密碼處理
-passlib[bcrypt]>=1.7
+passlib[bcrypt]>=1.7.4
 
-# JWT處理 (選擇PyJWT，避免雙載)
-PyJWT>=2.8
+# HTTP客戶端
+httpx>=0.24.0
 
-# 表單處理
-python-multipart>=0.0.9
-
-# OpenAI (保留現有)
-openai==1.51.*
-
-# 測試工具
-pytest==8.*
-
-# 監控
-sentry-sdk[fastapi]
-
-# 其他工具
-python-dotenv>=1.0
-structlog>=23.1
+# 環境變數
+python-dotenv>=1.0.0
 
