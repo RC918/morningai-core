@@ -1,0 +1,91 @@
+@startuml MorningAI-Cloud-Architecture-Simple
+!theme plain
+title MorningAI Core - 雲端架構圖 (D+3)
+
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+' Define components
+rectangle "Developer" as dev #lightblue
+rectangle "GitHub" as github #black {
+  component "Repository" as repo
+  component "Actions CI/CD" as actions
+  component "Container Registry" as ghcr
+  component "Secrets Manager" as secrets
+}
+
+rectangle "Render.com" as render #green {
+  component "FastAPI App" as api
+  component "Redis Cache" as redis
+}
+
+rectangle "Supabase" as supabase #teal {
+  component "PostgreSQL + pgvector" as db
+}
+
+rectangle "Monitoring" as monitor #orange {
+  component "Sentry" as sentry
+  component "Grafana" as grafana
+  component "OpenTelemetry" as otel
+}
+
+rectangle "External APIs" as external #yellow {
+  component "OpenAI GPT" as openai
+  component "Telegram/LINE" as notify
+}
+
+' Define connections
+dev --> repo : "git push"
+repo --> actions : "trigger CI/CD"
+actions --> ghcr : "build & push image"
+actions --> api : "deploy to staging"
+ghcr --> api : "pull container"
+secrets --> api : "inject secrets"
+
+api --> db : "database queries"
+api --> redis : "caching"
+api --> openai : "AI requests"
+api --> notify : "push notifications"
+
+api --> otel : "telemetry data"
+otel --> sentry : "error tracking"
+otel --> grafana : "metrics & dashboards"
+
+' Add notes
+note right of github
+  **GitHub Features**
+  • Source code management
+  • Automated CI/CD pipeline
+  • Container image registry
+  • Environment-based secrets
+  • Automated testing & deployment
+end note
+
+note right of render
+  **Render.com Features**
+  • Docker container hosting
+  • Auto-scaling & load balancing
+  • SSL termination
+  • Health checks
+  • Zero-downtime deployments
+end note
+
+note right of supabase
+  **Supabase Features**
+  • Managed PostgreSQL 15+
+  • pgvector for embeddings
+  • Real-time subscriptions
+  • Row Level Security
+  • Automatic backups
+end note
+
+note bottom of monitor
+  **Monitoring Stack**
+  • P95 Response Time: <3s
+  • Error Rate: <1%
+  • RAG Hit Rate: >90%
+  • Real-time alerting
+end note
+
+@enduml
+

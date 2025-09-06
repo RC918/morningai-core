@@ -1,0 +1,143 @@
+# MorningAI Core - Render.com Service Configuration
+# This file defines the infrastructure for staging and production environments
+
+services:
+  # Main API Service
+  - type: web
+    name: morningai-core-staging
+    runtime: docker
+    plan: starter  # Free tier for staging
+    region: oregon  # US West
+    branch: main
+    rootDir: .
+    dockerfilePath: cloud-deployment/docker/Dockerfile
+    
+    # Environment variables
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: LOG_LEVEL
+        value: info
+      - key: WORKERS
+        value: 1
+      - key: PORT
+        value: 8000
+      - key: PYTHONPATH
+        value: /app
+      - key: DATABASE_URL
+        fromService:
+          type: pserv
+          name: morningai-postgres-staging
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: morningai-redis-staging
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: OPENAI_API_BASE
+        value: https://api.openai.com/v1
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: SENTRY_DSN
+        sync: false  # Set manually in Render dashboard
+      - key: SENTRY_ENVIRONMENT
+        value: staging
+    
+    # Health check configuration
+    healthCheckPath: /health
+    
+    # Auto-deploy on push to main
+    autoDeploy: true
+    
+    # Build command (if needed)
+    buildCommand: echo "Using Docker build"
+    
+    # Start command (defined in Dockerfile)
+    # startCommand: uvicorn src.main:app --host 0.0.0.0 --port 8000
+
+  # PostgreSQL Database
+  - type: pserv
+    name: morningai-postgres-staging
+    runtime: postgresql
+    plan: free  # Free tier for staging
+    region: oregon
+    
+    # Database configuration
+    databaseName: morningai_staging
+    databaseUser: morningai_user
+    
+    # Extensions
+    postgreSQLVersion: "15"
+    
+    # Environment variables for pgvector
+    envVars:
+      - key: POSTGRES_EXTENSIONS
+        value: vector
+    
+    # Backup configuration (for paid plans)
+    # backupRetentionDays: 7
+
+  # Redis Cache
+  - type: redis
+    name: morningai-redis-staging
+    plan: free  # Free tier for staging
+    region: oregon
+    
+    # Redis configuration
+    maxmemoryPolicy: allkeys-lru
+    
+    # Environment variables
+    envVars:
+      - key: REDIS_MAXMEMORY
+        value: 25mb  # Free tier limit
+
+# Production services (commented out for now)
+# - type: web
+#   name: morningai-core-production
+#   runtime: docker
+#   plan: standard  # Paid plan for production
+#   region: oregon
+#   branch: production
+#   rootDir: .
+#   dockerfilePath: cloud-deployment/docker/Dockerfile
+#   
+#   envVars:
+#     - key: ENVIRONMENT
+#       value: production
+#     - key: LOG_LEVEL
+#       value: warning
+#     - key: WORKERS
+#       value: 2
+#     # ... other production env vars
+#   
+#   healthCheckPath: /health
+#   autoDeploy: false  # Manual deployment for production
+#   
+#   # Custom domain (for paid plans)
+#   # customDomains:
+#   #   - api.morningai.com
+
+# - type: pserv
+#   name: morningai-postgres-production
+#   runtime: postgresql
+#   plan: standard
+#   region: oregon
+#   databaseName: morningai_production
+#   databaseUser: morningai_user
+#   postgreSQLVersion: "15"
+#   backupRetentionDays: 30
+
+# - type: redis
+#   name: morningai-redis-production
+#   plan: standard
+#   region: oregon
+#   maxmemoryPolicy: allkeys-lru
+
