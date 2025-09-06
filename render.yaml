@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: morningai-core-staging
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    plan: free
+    
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: RAG_ENABLED
+        value: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "https://morningai-core-staging.vercel.app,https://morningai-core-staging-git-main-morning-ai.vercel.app"
+

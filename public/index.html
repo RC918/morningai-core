@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MorningAI Core - Frontend-Backend Separation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { margin-bottom: 1rem; }
+        .status { margin: 1rem 0; }
+        .api-link {
+            display: inline-block;
+            margin: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            text-decoration: none;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .api-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌅 MorningAI Core</h1>
+        <p class="status">Frontend-Backend Separation Architecture</p>
+        <p>前端部署在 Vercel，後端 API 部署在 Render</p>
+        
+        <div>
+            <a href="/api/healthz" class="api-link">Health Check</a>
+            <a href="/api/version" class="api-link">Version Info</a>
+        </div>
+        
+        <p><small>D+2 部署進度中...</small></p>
+    </div>
+</body>
+</html>
+
