@@ -30,7 +30,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('package-lock.json', 'yarn.lock') != '' }}
+    if: hashFiles('package-lock.json', 'yarn.lock') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
