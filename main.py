@@ -25,11 +25,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 添加 TrustedHost 中間件
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=ALLOWED_HOSTS
-)
+# 暫時禁用 TrustedHost 中間件進行 Cloudflare 代理測試
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=ALLOWED_HOSTS,
+#     www_redirect=False  # 禁用www重定向以避免與Cloudflare衝突
+# )
 
 # 添加 CORS 中間件
 app.add_middleware(
@@ -191,7 +192,8 @@ if __name__ == "__main__":
         host="0.0.0.0", 
         port=port,
         proxy_headers=True,
-        forwarded_allow_ips="*"
+        forwarded_allow_ips="*",
+        access_log=True
     )
 
 
