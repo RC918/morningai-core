@@ -70,6 +70,20 @@ async def health_check():
     """輕量版健康檢查端點 - 不連DB，只回基本狀態"""
     return {"ok": True, "status": "healthy", "service": "morningai-core-api"}
 
+@app.get("/version.json")
+async def version_info():
+    """版本信息端點 - 用於驗收測試"""
+    return {
+        "service": "morningai-core-api",
+        "version": "1.0.0",
+        "commit": os.getenv("RENDER_GIT_COMMIT", "unknown"),
+        "build_id": os.getenv("RENDER_SERVICE_ID", "srv-d2tgr0p5pdvs739ig030"),
+        "build_time": datetime.utcnow().isoformat(),
+        "environment": os.getenv("ENVIRONMENT", "staging"),
+        "platform": "render",
+        "python_version": "3.11.9"
+    }
+
 @app.get("/healthz")
 async def healthz():
     """全量健康檢查 - 含DB檢查但有容錯機制"""

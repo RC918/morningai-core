@@ -80,7 +80,7 @@ echo "================"
 check_item "Python 版本配置" "cat runtime.txt" "python-3.11.9"
 
 # 檢查 aiohttp 殘留
-check_item "aiohttp 已完全移除" "grep -c 'import aiohttp\|from aiohttp' . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=venv 2>/dev/null || echo '0'" "0"
+check_item "aiohttp 已完全移除" "grep -r 'import aiohttp\|from aiohttp' . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=venv 2>/dev/null | wc -l" "0"
 
 # 檢查 httpx 依賴
 check_item "httpx 依賴存在" "grep -c 'httpx==' requirements.txt" "1"
