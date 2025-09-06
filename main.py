@@ -56,18 +56,83 @@ async def healthz():
 
 @app.get("/api/v1/health")
 async def api_health():
-    """API 健康檢查"""
-    env_status = {
-        "database": "configured" if os.getenv("DATABASE_URL") else "not_configured",
-        "openai": "configured" if os.getenv("OPENAI_API_KEY") else "not_configured",
+    """API 健康檢查 - 包含實際連接測試"""
+    import asyncio
+    import asyncpg
+    import openai
+    from datetime import datetime
+    
+    health_status = {
+        "api_status": "operational",
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment_variables": {},
+        "connection_tests": {}
+    }
+    
+    # 檢查環境變數
+    database_url = os.getenv("DATABASE_URL")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    
+    health_status["environment_variables"] = {
+        "database": "configured" if database_url else "not_configured",
+        "openai": "configured" if openai_key else "not_configured",
         "supabase": "configured" if os.getenv("SUPABASE_URL") else "not_configured"
     }
     
-    return {
-        "api_status": "operational",
-        "timestamp": datetime.utcnow().isoformat(),
-        "environment_variables": env_status
-    }
+    # 測試資料庫連接
+    if database_url:
+        try:
+            conn = await asyncpg.connect(database_url)
+            result = await conn.fetchval("SELECT 1")
+            await conn.close()
+            health_status["connection_tests"]["database"] = {
+                "status": "connected",
+                "test_query": "SELECT 1",
+                "result": result
+            }
+        except Exception as e:
+            health_status["connection_tests"]["database"] = {
+                "status": "failed",
+                "error": str(e)
+            }
+    else:
+        health_status["connection_tests"]["database"] = {
+            "status": "not_configured"
+        }
+    
+    # 測試 OpenAI API 連接
+    if openai_key:
+        try:
+            client = openai.OpenAI(api_key=openai_key)
+            models = client.models.list()
+            model_count = len(models.data) if models.data else 0
+            health_status["connection_tests"]["openai"] = {
+                "status": "connected",
+                "available_models": model_count,
+                "test": "models.list()"
+            }
+        except Exception as e:
+            health_status["connection_tests"]["openai"] = {
+                "status": "failed",
+                "error": str(e)
+            }
+    else:
+        health_status["connection_tests"]["openai"] = {
+            "status": "not_configured"
+        }
+    
+    # 設定整體健康狀態
+    db_healthy = health_status["connection_tests"].get("database", {}).get("status") == "connected"
+    openai_healthy = health_status["connection_tests"].get("openai", {}).get("status") == "connected"
+    
+    if db_healthy and openai_healthy:
+        health_status["api_status"] = "healthy"
+    elif db_healthy or openai_healthy:
+        health_status["api_status"] = "degraded"
+    else:
+        health_status["api_status"] = "unhealthy"
+    
+    return health_status
 
 @app.get("/version")
 async def version():
