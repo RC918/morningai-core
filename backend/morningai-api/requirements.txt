@@ -18,8 +18,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # HTTP 客戶端
-httpx==0.25.2
-aiohttp==3.8.5
+httpx==0.27.*
 
 # 外部 API 整合
 openai==1.106.1
