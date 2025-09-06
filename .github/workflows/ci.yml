@@ -25,6 +25,27 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt -c constraints.txt
 
+      - name: Check prohibited dependencies
+        run: |
+          echo "🔍 Checking for prohibited dependencies..."
+          
+          # Check for aiohttp in requirements
+          if grep -r "aiohttp" requirements.txt constraints.txt 2>/dev/null; then
+            echo "❌ Found prohibited aiohttp dependency in requirements"
+            echo "Use httpx instead of aiohttp"
+            exit 1
+          fi
+          
+          # Check for aiohttp imports in code
+          if find . -name "*.py" -not -path "./.git/*" -not -path "./venv/*" -not -path "./.venv/*" -exec grep -l "import aiohttp\|from aiohttp" {} \; 2>/dev/null | grep -q .; then
+            echo "❌ Found prohibited aiohttp imports in code:"
+            find . -name "*.py" -not -path "./.git/*" -not -path "./venv/*" -not -path "./.venv/*" -exec grep -l "import aiohttp\|from aiohttp" {} \; 2>/dev/null
+            echo "Use httpx instead of aiohttp"
+            exit 1
+          fi
+          
+          echo "✅ No prohibited dependencies found"
+
       - name: Run tests
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
