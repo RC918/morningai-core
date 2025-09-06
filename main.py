@@ -13,10 +13,9 @@ ALLOWED_HOSTS = [
     "api.morningai.me",
     "admin.morningai.me", 
     "morning-ai-api.onrender.com",
+    "morningai-core-staging.onrender.com",
     "localhost",
-    "127.0.0.1",
-    "*.morningai.me",  # 萬用字元支持子域名
-    "*"  # 臨時允許所有主機用於測試
+    "127.0.0.1"
 ]
 
 # 創建 FastAPI 應用
