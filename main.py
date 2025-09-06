@@ -11,11 +11,12 @@ from datetime import datetime
 # 定義允許的主機名
 ALLOWED_HOSTS = [
     "api.morningai.me",
-    "admin.morningai.me",
+    "admin.morningai.me", 
     "morning-ai-api.onrender.com",
     "localhost",
     "127.0.0.1",
-    "*.morningai.me"  # 萬用字元支持子域名
+    "*.morningai.me",  # 萬用字元支持子域名
+    "*"  # 臨時允許所有主機用於測試
 ]
 
 # 創建 FastAPI 應用
