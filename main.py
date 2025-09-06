@@ -168,16 +168,7 @@ async def echo():
 
 if __name__ == "__main__":
     import uvicorn
-import uvicorn
-import openai
-import sentry_sdk
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
-sentry_sdk.init(
-    dsn="https://389e9db40bf58c06cb20317f24d357b@04509971383910400.ingest.us.sentry.io/4509971411894272",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-
-)
-port = int(os.getenv("PORT", 8000))
-uvicorn.run(app, host="0.0.0.0", port=port)
 
