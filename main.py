@@ -55,8 +55,8 @@ async def healthz():
     }
 
 @app.get("/api/v1/health")
-async def api_health():
-    """API 健康檢查 - 包含實際連接測試"""
+def api_health():
+    """API 健康檢查 - 包含實際連接測試（同步版本）"""
     import psycopg2
     import openai
     from datetime import datetime
@@ -78,7 +78,7 @@ async def api_health():
         "supabase": "configured" if os.getenv("SUPABASE_URL") else "not_configured"
     }
     
-    # 測試資料庫連接
+    # 測試資料庫連接（同步版本）
     if database_url:
         try:
             conn = psycopg2.connect(database_url)
