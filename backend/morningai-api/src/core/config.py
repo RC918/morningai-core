@@ -53,7 +53,16 @@ class Settings(BaseSettings):
         env="CORS_ORIGINS"
     )
     CORS_ALLOW_CREDENTIALS: bool = Field(default=True, env="CORS_ALLOW_CREDENTIALS")
-    ALLOWED_HOSTS: List[str] = Field(default=["*"], env="ALLOWED_HOSTS")
+    ALLOWED_HOSTS: List[str] = Field(
+        default=[
+            "api.morningai.me",
+            "admin.morningai.me", 
+            "morning-ai-api.onrender.com",
+            "localhost",
+            "127.0.0.1"
+        ], 
+        env="ALLOWED_HOSTS"
+    )
     
     # 速率限制配置
     RATE_LIMIT_ENABLED: bool = Field(default=True, env="RATE_LIMIT_ENABLED")

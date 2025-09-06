@@ -85,6 +85,6 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE $PORT
 
-# Start command with proper signal handling
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers $WORKERS --access-log --log-level info"]
+# Start command with proper signal handling and proxy support
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers $WORKERS --access-log --log-level info --proxy-headers --forwarded-allow-ips='*'"]
 

@@ -4,8 +4,19 @@ MorningAI Core API - Render 部署入口點
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import os
 from datetime import datetime
+
+# 定義允許的主機名
+ALLOWED_HOSTS = [
+    "api.morningai.me",
+    "admin.morningai.me",
+    "morning-ai-api.onrender.com",
+    "localhost",
+    "127.0.0.1",
+    "*.morningai.me"  # 萬用字元支持子域名
+]
 
 # 創建 FastAPI 應用
 app = FastAPI(
@@ -14,10 +25,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# 添加 TrustedHost 中間件
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=ALLOWED_HOSTS
+)
+
 # 添加 CORS 中間件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://app.morningai.me", "http://localhost:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -169,6 +186,12 @@ async def echo():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=port,
+        proxy_headers=True,
+        forwarded_allow_ips="*"
+    )
 
 
