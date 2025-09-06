@@ -168,6 +168,7 @@ async def echo():
 
 if __name__ == "__main__":
     import uvicorn
+import uvicorn
 import openai
 import sentry_sdk
 
