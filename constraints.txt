@@ -1,3 +1,2 @@
-# line-bot-sdk 3.5.0 依賴 aiohttp==3.8.5
-aiohttp==3.8.5
+# No constraints needed - removed aiohttp dependency
 
