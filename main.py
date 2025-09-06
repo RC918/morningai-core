@@ -8,12 +8,14 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import os
 from datetime import datetime
 
-# 定義允許的主機名 - 按照驗收指令配置
+# 定義允許的主機名 - 按照驗收指令配置，包含實際的Render URL
 ALLOWED_HOSTS = [
     "api.morningai.me",
     "*.morningai.me", 
     "morningai-core.onrender.com",
     "morningai-core-staging.onrender.com",
+    "morning-ai-api.onrender.com",  # 實際的Render URL
+    "*.onrender.com",  # 允許所有onrender.com子域名
     "localhost",
     "127.0.0.1",
     "::1"
