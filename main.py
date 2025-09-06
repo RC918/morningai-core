@@ -57,8 +57,7 @@ async def healthz():
 @app.get("/api/v1/health")
 async def api_health():
     """API 健康檢查 - 包含實際連接測試"""
-    import asyncio
-    import asyncpg
+    import psycopg2
     import openai
     from datetime import datetime
     
@@ -82,9 +81,12 @@ async def api_health():
     # 測試資料庫連接
     if database_url:
         try:
-            conn = await asyncpg.connect(database_url)
-            result = await conn.fetchval("SELECT 1")
-            await conn.close()
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
             health_status["connection_tests"]["database"] = {
                 "status": "connected",
                 "test_query": "SELECT 1",
