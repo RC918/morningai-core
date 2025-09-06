@@ -1,0 +1,23 @@
+# 最小化依賴 - 備用方案
+# 如果完整版requirements.txt有問題，可以使用這個
+
+# FastAPI核心 (必需)
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+
+# 基本依賴
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# JWT (簡化版本)
+PyJWT>=2.8.0
+
+# 密碼處理
+passlib[bcrypt]>=1.7.4
+
+# HTTP客戶端
+httpx>=0.24.0
+
+# 環境變數
+python-dotenv>=1.0.0
+
