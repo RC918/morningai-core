@@ -1,0 +1,87 @@
+# CI 增強檢查配置
+# 添加到 .github/workflows/ci.yml 的 backend job 中
+
+- name: Check for aiohttp residue
+  run: |
+    echo "🔍 檢查 aiohttp 殘留引用..."
+    if grep -r "import aiohttp\|from aiohttp" . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=venv 2>/dev/null; then
+      echo "❌ 發現 aiohttp import 語句"
+      exit 1
+    fi
+    
+    # 檢查 requirements 文件中的 aiohttp 依賴（排除註釋）
+    if grep -v "^#" requirements.txt | grep "aiohttp" 2>/dev/null; then
+      echo "❌ requirements.txt 中發現 aiohttp 依賴"
+      exit 1
+    fi
+    
+    if grep -v "^#" constraints.txt | grep "aiohttp" 2>/dev/null; then
+      echo "❌ constraints.txt 中發現 aiohttp 依賴"
+      exit 1
+    fi
+    
+    echo "✅ 未發現 aiohttp 殘留引用"
+
+- name: Validate Python version consistency
+  run: |
+    echo "🔍 檢查 Python 版本一致性..."
+    
+    # 檢查 runtime.txt
+    if [ ! -f "runtime.txt" ]; then
+      echo "❌ runtime.txt 文件不存在"
+      exit 1
+    fi
+    
+    runtime_version=$(cat runtime.txt)
+    if [[ ! "$runtime_version" =~ ^python-3\.11\. ]]; then
+      echo "❌ runtime.txt 版本不是 Python 3.11.x: $runtime_version"
+      exit 1
+    fi
+    
+    echo "✅ Python 版本配置正確: $runtime_version"
+
+- name: Health check endpoint validation
+  run: |
+    echo "🔍 驗證健康檢查端點配置..."
+    
+    # 檢查 main.py 中是否包含健康檢查端點
+    if ! grep -q "@app.get(\"/health\")" main.py; then
+      echo "❌ 未找到 /health 端點定義"
+      exit 1
+    fi
+    
+    if ! grep -q "@app.get(\"/healthz\")" main.py; then
+      echo "❌ 未找到 /healthz 端點定義"
+      exit 1
+    fi
+    
+    echo "✅ 健康檢查端點配置正確"
+
+- name: Middleware configuration validation
+  run: |
+    echo "🔍 驗證中間件配置..."
+    
+    # 檢查 TrustedHostMiddleware
+    if ! grep -q "TrustedHostMiddleware" main.py; then
+      echo "❌ 未找到 TrustedHostMiddleware 配置"
+      exit 1
+    fi
+    
+    # 檢查 CORS 配置
+    if ! grep -q "CORSMiddleware" main.py; then
+      echo "❌ 未找到 CORSMiddleware 配置"
+      exit 1
+    fi
+    
+    echo "✅ 中間件配置正確"
+
+- name: Dependencies security check
+  run: |
+    echo "🔍 檢查依賴安全性..."
+    
+    # 檢查是否有已知的不安全依賴版本
+    pip install safety
+    safety check --json || echo "⚠️ 發現潛在安全問題，請檢查依賴版本"
+    
+    echo "✅ 依賴安全檢查完成"
+
