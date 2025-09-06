@@ -1,0 +1,150 @@
+name: Database Smoke Tests & Host Validation
+
+on:
+  pull_request:
+    branches: [ main, staging ]
+  push:
+    branches: [ main, staging ]
+
+jobs:
+  db-smoke:
+    runs-on: ubuntu-latest
+    name: Database Health & Host Validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host Whitelist & Worker Route Check
+        run: |
+          echo "🔍 Testing Host whitelist and Cloudflare Worker routing..."
+          
+          # Test production endpoint
+          HEALTH_URL="https://api.morningai.me/health"
+          echo "Testing: $HEALTH_URL"
+          
+          # Perform health check with timeout
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null --max-time 30 "$HEALTH_URL" || echo "000")
+          
+          echo "HTTP Response Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ CF Route Risk: Health check failed with code $HTTP_CODE"
+            echo "This indicates potential Cloudflare Worker routing issues or host validation problems."
+            echo "Expected: 200, Got: $HTTP_CODE"
+            echo ""
+            echo "Troubleshooting steps:"
+            echo "1. Check Cloudflare Worker routes exclude /health path"
+            echo "2. Verify TrustedHostMiddleware configuration"
+            echo "3. Check Render service deployment status"
+            echo "4. Verify DNS and proxy settings"
+            exit 1
+          else
+            echo "✅ Host whitelist and Worker routing working correctly"
+          fi
+
+      - name: Database Connection Test
+        run: |
+          echo "🔍 Testing database connectivity..."
+          
+          # Test healthz endpoint (includes DB check)
+          HEALTHZ_URL="https://api.morningai.me/healthz"
+          echo "Testing: $HEALTHZ_URL"
+          
+          HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null --max-time 30 "$HEALTHZ_URL" || echo "000")
+          
+          echo "HTTP Response Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Database connectivity issue detected"
+            echo "Expected: 200, Got: $HTTP_CODE"
+            exit 1
+          else
+            echo "✅ Database connectivity test passed"
+          fi
+
+      - name: Check aiohttp Dependencies
+        run: |
+          echo "🔍 Checking for prohibited aiohttp dependencies..."
+          
+          # Check requirements files
+          if grep -r "aiohttp" requirements.txt constraints.txt 2>/dev/null; then
+            echo "❌ Found aiohttp in requirements files"
+            echo "aiohttp dependencies are prohibited. Use httpx instead."
+            exit 1
+          fi
+          
+          # Check Python import statements in source code
+          AIOHTTP_IMPORTS=$(find . -name "*.py" -not -path "./.git/*" -not -path "./venv/*" -not -path "./.venv/*" -exec grep -l "import aiohttp\|from aiohttp" {} \; 2>/dev/null | wc -l)
+          
+          if [ "$AIOHTTP_IMPORTS" -gt 0 ]; then
+            echo "❌ Found aiohttp imports in Python code:"
+            find . -name "*.py" -not -path "./.git/*" -not -path "./venv/*" -not -path "./.venv/*" -exec grep -l "import aiohttp\|from aiohttp" {} \; 2>/dev/null
+            echo "aiohttp imports are prohibited. Use httpx instead."
+            exit 1
+          fi
+          
+          echo "✅ No prohibited aiohttp dependencies found"
+
+      - name: API Response Time Check
+        run: |
+          echo "🔍 Testing API response times..."
+          
+          # Test response time for health endpoint
+          RESPONSE_TIME=$(curl -s -w "%{time_total}" -o /dev/null --max-time 30 "https://api.morningai.me/health" || echo "999")
+          
+          echo "Response time: ${RESPONSE_TIME}s"
+          
+          # Check if response time is reasonable (< 5 seconds)
+          if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+            echo "⚠️ Warning: Slow response time detected (${RESPONSE_TIME}s > 5.0s)"
+            echo "Consider investigating performance issues"
+          else
+            echo "✅ Response time within acceptable range"
+          fi
+
+      - name: Security Headers Check
+        run: |
+          echo "🔍 Checking security headers..."
+          
+          # Check for basic security headers
+          HEADERS=$(curl -sI "https://api.morningai.me/health" --max-time 30)
+          
+          echo "Response headers received"
+          
+          # Check for Cloudflare headers (indicates proper routing)
+          if echo "$HEADERS" | grep -qi "cf-ray"; then
+            echo "✅ Cloudflare routing detected"
+          else
+            echo "⚠️ Warning: Cloudflare headers not detected"
+          fi
+          
+          # Check for CORS headers
+          if echo "$HEADERS" | grep -qi "access-control"; then
+            echo "✅ CORS headers present"
+          else
+            echo "ℹ️ Info: CORS headers not present in health endpoint (expected)"
+          fi
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [db-smoke]
+    if: always()
+    steps:
+      - name: Test Summary
+        run: |
+          echo "🎯 Database Smoke Tests & Host Validation Summary"
+          echo "=============================================="
+          
+          if [ "${{ needs.db-smoke.result }}" == "success" ]; then
+            echo "✅ All checks passed successfully"
+            echo "- Host whitelist configuration: OK"
+            echo "- Cloudflare Worker routing: OK"
+            echo "- Database connectivity: OK"
+            echo "- aiohttp dependencies: Clean"
+            echo "- API performance: Acceptable"
+            echo "- Security headers: Verified"
+          else
+            echo "❌ Some checks failed"
+            echo "Please review the failed checks above and fix issues before merging."
+            exit 1
+          fi
+

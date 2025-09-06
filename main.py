@@ -2,7 +2,7 @@
 MorningAI Core API - Render 部署入口點
 簡化版本用於快速部署和測試
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import os
@@ -53,17 +53,173 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 根路徑
 @app.get("/")
 async def read_root():
     """根路徑"""
     return {
-        "message": "MorningAI Core API - Render Deployment",
-        "status": "healthy",
+        "message": "MorningAI Core API",
         "version": "1.0.0",
-        "environment": "staging",
-        "timestamp": datetime.utcnow().isoformat(),
-        "platform": "render"
+        "status": "running",
+        "timestamp": datetime.now().isoformat(),
+        "docs": "/docs"
     }
+
+# Import auth models and service
+from auth_models import (
+    UserRegisterRequest, UserLoginRequest, UserRegisterResponse, 
+    UserLoginResponse, ReferralStatsResponse
+)
+from auth_service_updated import AuthServiceUpdated
+import asyncpg
+from fastapi import Depends, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import time
+from collections import defaultdict
+
+# Rate limiting (simple in-memory implementation)
+request_counts = defaultdict(list)
+RATE_LIMIT = 5  # requests per minute per IP
+
+def rate_limit_check(request):
+    """Simple rate limiting: 5 requests per minute per IP"""
+    client_ip = request.client.host
+    now = time.time()
+    
+    # Clean old requests
+    request_counts[client_ip] = [
+        req_time for req_time in request_counts[client_ip] 
+        if now - req_time < 60
+    ]
+    
+    # Check rate limit
+    if len(request_counts[client_ip]) >= RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    
+    # Add current request
+    request_counts[client_ip].append(now)
+
+# Security
+security = HTTPBearer()
+
+# Database connection pool
+db_pool = None
+auth_service = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection on startup"""
+    global db_pool, auth_service
+    try:
+        # Database connection string from environment
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            print("[STARTUP WARNING] DATABASE_URL not configured")
+            return
+            
+        db_pool = await asyncpg.create_pool(database_url, min_size=1, max_size=10)
+        auth_service = AuthServiceUpdated(db_pool)
+        print("[STARTUP] Database connection pool created")
+    except Exception as e:
+        print(f"[STARTUP ERROR] Failed to connect to database: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection on shutdown"""
+    global db_pool
+    if db_pool:
+        await db_pool.close()
+        print("[SHUTDOWN] Database connection pool closed")
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current user from JWT token"""
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service unavailable")
+    
+    token = credentials.credentials
+    user = await auth_service.get_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    return user
+
+# Auth API Endpoints
+@app.post("/auth/register", response_model=UserRegisterResponse, status_code=201)
+async def register_user(request: UserRegisterRequest, http_request: Request):
+    """
+    用戶註冊端點
+    - 支持推薦碼註冊
+    - 密碼強度驗證
+    - 返回JWT令牌
+    """
+    # Rate limiting
+    rate_limit_check(http_request)
+    
+    try:
+        if not auth_service:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+        
+        response = await auth_service.create_user(request)
+        return response
+    except ValueError as e:
+        error_msg = str(e)
+        if error_msg == "EMAIL_EXISTS":
+            raise HTTPException(status_code=409, detail="Email already exists")
+        elif "密碼" in error_msg:
+            raise HTTPException(status_code=422, detail=error_msg)
+        else:
+            raise HTTPException(status_code=400, detail="Registration failed")
+    except Exception as e:
+        print(f"[ERROR] Register user failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/auth/login", response_model=UserLoginResponse)
+async def login_user(request: UserLoginRequest, http_request: Request):
+    """
+    用戶登入端點
+    - 驗證郵箱和密碼
+    - 返回JWT令牌
+    - 更新登入記錄
+    """
+    # Rate limiting
+    rate_limit_check(http_request)
+    
+    try:
+        if not auth_service:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+        
+        response = await auth_service.authenticate_user(request)
+        return response
+    except ValueError as e:
+        error_msg = str(e)
+        if error_msg in ["INVALID_CREDENTIALS", "USER_INACTIVE"]:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        else:
+            raise HTTPException(status_code=400, detail="Login failed")
+    except Exception as e:
+        print(f"[ERROR] Login user failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/referral/stats", response_model=ReferralStatsResponse)
+async def get_referral_stats(
+    period: str = "all",
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    獲取用戶推薦統計
+    - 需要Bearer Token認證
+    - 支持時間段篩選: 7d, 30d, all
+    """
+    try:
+        if not auth_service:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+        
+        user_id = str(current_user['id'])
+        response = await auth_service.get_referral_stats(user_id, period)
+        return response
+    except Exception as e:
+        print(f"[ERROR] Get referral stats failed: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
 async def health_check():
