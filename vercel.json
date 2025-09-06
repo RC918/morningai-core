@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/test",
+      "destination": "https://httpbin.org/json"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://morningai-core-staging.onrender.com/:path*"
     }
