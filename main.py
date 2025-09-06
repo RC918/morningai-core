@@ -98,18 +98,37 @@ def api_health():
     # 測試 OpenAI API 連接
     if openai_key:
         try:
-            client = openai.OpenAI(api_key=openai_key)
-            models = client.models.list()
-            model_count = len(models.data) if models.data else 0
+            # 使用更簡單的客戶端初始化
+            client = openai.OpenAI(
+                api_key=openai_key,
+                timeout=10.0  # 添加超時設置
+            )
+            # 使用更簡單的測試請求
+            response = client.models.list()
+            model_count = len(response.data) if hasattr(response, 'data') and response.data else 0
             health_status["connection_tests"]["openai"] = {
                 "status": "connected",
                 "available_models": model_count,
-                "test": "models.list()"
+                "test": "models.list()",
+                "client_version": openai.__version__
+            }
+        except openai.AuthenticationError as e:
+            health_status["connection_tests"]["openai"] = {
+                "status": "failed",
+                "error": f"Authentication failed: {str(e)}",
+                "error_type": "authentication"
+            }
+        except openai.APIError as e:
+            health_status["connection_tests"]["openai"] = {
+                "status": "failed", 
+                "error": f"API error: {str(e)}",
+                "error_type": "api_error"
             }
         except Exception as e:
             health_status["connection_tests"]["openai"] = {
                 "status": "failed",
-                "error": str(e)
+                "error": f"Unexpected error: {str(e)}",
+                "error_type": "unknown"
             }
     else:
         health_status["connection_tests"]["openai"] = {
